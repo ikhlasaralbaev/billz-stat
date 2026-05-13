@@ -1,273 +1,66 @@
-@AGENTS.md
-# Project Overview
+# CLAUDE.md
 
-Retail analytics MVP built around Billz API.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-The product helps store owners identify where they are losing money daily using simple actionable insights delivered through Telegram.
+## Commands
 
-The system should remain lightweight, fast to iterate, and easy to maintain.
+```bash
+npm run dev      # start dev server at http://localhost:3000
+npm run build    # production build
+npm run start    # start production server
+npm run lint     # run ESLint
+```
 
----
+No test runner is configured yet.
 
-# Main Goal
+## Project Purpose
 
-Answer one question clearly:
+Retail analytics MVP built around the Billz API. Delivers daily reports to store owners via Telegram answering: "Where is the store losing money today?"
 
-"Where is the store losing money today?"
+Four insights only (MVP scope):
+- **Dead Stock** — products in stock, not sold for 7+ days
+- **Revenue Drop** — today vs yesterday revenue, triggers at >20% drop
+- **Overstock** — stock exceeds estimated 30-day sales volume
+- **Discount/Return Anomalies** — threshold-based detection of excessive discounts or unusual returns
 
----
+## Tech Stack
 
-# Current MVP Scope
+- **Next.js 16** with App Router (see warning below)
+- **TypeScript** (strict)
+- **Tailwind CSS v4**
+- **MongoDB + Mongoose** — minimal usage; store users, tokens, and essential metadata only
+- **Telegraf** — Telegram bot delivery
+- **Axios** — Billz API calls
+- **Vercel Cron** — daily scheduled reports
 
-The MVP only includes:
+## Next.js Version Warning
 
-- Billz API integration
-- Simple insight calculations
-- Telegram delivery
-- Daily scheduled reports
+This project uses Next.js 16, which has breaking changes from earlier versions. Before writing any Next.js-specific code, read the relevant guide in `node_modules/next/dist/docs/`. APIs, conventions, and file structure may differ from training data.
 
----
+## Data Flow
 
-# Insights Included
+```
+Billz API → fetch raw data → calculate insights → generate Telegram message → send report
+```
 
-Only these 4 insights exist initially:
+Prefer this over storing and aggregating. Database is for users, tokens, and essential metadata only — not analytics storage.
 
-## 1. Dead Stock
+## Architecture Rules
 
-Products:
-- in stock
-- not sold for 7+ days
+Organize by feature/domain. Keep modules and functions small with explicit logic.
 
-Purpose:
-identify frozen capital.
-
----
-
-## 2. Revenue Drop
-
-Compare:
-- today revenue
-- yesterday revenue
-
-Trigger:
-- revenue drop > 20%
-
----
-
-## 3. Overstock
-
-Products with:
-- high stock
-- low sales velocity
-
-Simple logic:
-stock exceeds estimated 30-day sales volume.
-
----
-
-## 4. Discount / Return Anomalies
-
-Detect:
-- excessive discounts
-- unusual return activity
-
-Use simple threshold-based detection.
-
----
-
-# Current Delivery Channel
-
-Telegram only.
-
-No web dashboard for the MVP phase.
-
----
-
-# Future Scope (NOT current priority)
-
-These features may be added later:
-
-- Client dashboard
-- Charts and visual analytics
-- Multi-store support
-- Team accounts
-- AI-generated recommendations
-- More advanced analytics
-- Filters and customization
-
-Do not build these unless explicitly requested.
-
----
-
-# Tech Stack
-
-- Next.js App Router
-- TypeScript
-- PostgreSQL
-- TypeORM
-- Telegraf
-- Axios
-- Vercel Cron
-
----
-
-# Architecture Philosophy
-
-Keep everything:
-- simple
-- readable
-- maintainable
-
-Prefer direct implementations over abstractions.
-
-Avoid enterprise architecture patterns unless absolutely necessary.
-
----
-
-# Architecture Rules
-
-## Preferred
-
-- small modules
-- small functions
-- explicit logic
-- readable code
-- minimal dependencies
-- pragmatic solutions
-
----
-
-## Avoid
-
-- premature optimization
-- overengineering
-- unnecessary abstractions
-- deeply nested architecture
-- generic reusable systems too early
-
----
-
-# Explicitly Forbidden (for now)
-
-Do NOT implement:
-
-- microservices
-- CQRS
-- event sourcing
-- websocket systems
-- GraphQL
-- RBAC systems
-- complex auth
-- plugin systems
-- repository pattern abstractions
-- domain-driven architecture
+**Do not implement** (explicitly forbidden for MVP):
+- microservices, CQRS, event sourcing
+- WebSockets, GraphQL
+- RBAC or complex auth
+- plugin systems, repository pattern abstractions, domain-driven architecture
 - AI chat assistant
+- client dashboard, charts, multi-store support, team accounts
 
----
+## Environment Variables
 
-# Data Flow
-
-Billz API
-↓
-Fetch raw data
-↓
-Calculate insights
-↓
-Generate Telegram message
-↓
-Send report
-
----
-
-# Database Philosophy
-
-Database usage should remain minimal during MVP.
-
-Only store:
-- users
-- tokens
-- essential metadata
-
-Avoid building analytics storage infrastructure initially.
-
-Prefer:
-fetch -> calculate -> send
-
-instead of:
-store -> aggregate -> warehouse
-
----
-
-# Code Style Preferences
-
-## General
-
-- Use strict TypeScript
-- Prefer async/await
-- Keep functions focused
-- Avoid giant files
-- Avoid magic values
-- Use descriptive naming
-
----
-
-## Comments
-
-- Write comments only when necessary
-- Do not explain obvious code
-- Prefer self-explanatory code
-
----
-
-## Error Handling
-
-- Fail clearly
-- Log useful information
-- Avoid silent failures
-
----
-
-# Folder Structure Philosophy
-
-Organize by feature/domain.
-
-Avoid:
-- excessive layering
-- abstract folders
-- unnecessary indirection
-
----
-
-# Development Workflow
-
-Build incrementally.
-
-Each task should be:
-- isolated
-- testable
-- small enough to review quickly
-
-Do NOT attempt to generate the entire MVP at once.
-
----
-
-# Priority Order
-
-1. Telegram bot
-2. Billz API integration
-3. Insight calculation
-4. Scheduler
-5. Pilot testing
-6. Future dashboard
-
----
-
-# Important Reminder
-
-This is an MVP.
-
-Shipping fast is more important than architectural perfection.
-
-The primary objective is validating whether store owners care about the insights.
-
-Keep momentum high.
+Required env vars (see `.env`):
+- `MONGODB_URI`
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`
+- `BILLZ_API_URL_V1`, `BILLZ_API_URL_V2`, `BILLZ_SECRET_KEY`
+- `CRON_SECRET`
