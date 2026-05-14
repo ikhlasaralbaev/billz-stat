@@ -1,6 +1,7 @@
 import { getDashboardUser, getLatestReport, getRecentReports } from "@/lib/dashboard";
 import { redirect } from "next/navigation";
 import { getLang } from "@/lib/i18n";
+import { Suspense } from "react";
 import {
   DollarSign, TrendingUp, Receipt, CreditCard,
   Tag, Box, RotateCcw, ShoppingBag, Store, BarChart2, AlertTriangle,
@@ -10,11 +11,7 @@ import DeadStockTable from "./components/DeadStockTable";
 import OverstockTable from "./components/OverstockTable";
 import RevenueHistory from "./components/RevenueHistory";
 import GenerateReportButton from "./components/GenerateReportButton";
-import AnomalyAlerts from "./components/AnomalyAlerts";
-import { detectShopAnomalies } from "@/services/anomalyDetector";
-import { makeCacheKey } from "@/lib/billzCache";
-import type { GeneralReportRow } from "@/lib/billz";
-import type { Anomaly } from "@/types/anomaly";
+import AnomalySectionServer from "./components/AnomalySectionServer";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("uz-UZ", { notation: "compact", maximumFractionDigits: 1 }).format(
@@ -36,43 +33,10 @@ export default async function DashboardPage() {
   const lang = getLang(user);
   const isRu = lang === "ru";
 
-  const [report, recentReports, reports30d] = await Promise.all([
+  const [report, recentReports] = await Promise.all([
     getLatestReport(user.telegramId, user.billzToken),
     getRecentReports(user.telegramId, 7, user.billzToken),
-    getRecentReports(user.telegramId, 30, user.billzToken),
   ]);
-
-  // Build synthetic rows from stored reports (no extra Billz API call needed)
-  let anomalies: Anomaly[] = [];
-  try {
-    if (reports30d.length > 0) {
-      const syntheticRows: GeneralReportRow[] = reports30d.map((r) => ({
-        date: r.today?.date ?? new Date(r.createdAt).toISOString().slice(0, 10),
-        shop_id: "all",
-        shop_name: "All",
-        gross_sales: Number(r.today?.grossSales ?? 0),
-        net_gross_sales: Number(r.today?.netGrossSales ?? 0),
-        gross_profit: Number(r.today?.grossProfit ?? 0),
-        discount_sum: Number(r.today?.discountSum ?? 0),
-        discount_percent: 0,
-        sales_supply_price: 0,
-        transactions_count: Number(r.today?.ordersCount ?? 0),
-        orders_count: Number(r.today?.ordersCount ?? 0),
-        returns_count: Number(r.today?.returnsCount ?? 0),
-        products_sold: Number(r.today?.productsSold ?? 0),
-        average_cheque: Number(r.today?.averageCheque ?? 0),
-        average_extra_charge: 0,
-      }));
-      const anomalyCacheKey = makeCacheKey(String(user.telegramId), "anomaly::shop", {
-        count: String(reports30d.length),
-        latest: String(reports30d[0]?.createdAt ?? ""),
-      });
-      anomalies = await detectShopAnomalies(syntheticRows, "last 30 days", isRu, String(user.telegramId), anomalyCacheKey);
-    }
-  } catch (err) {
-    console.error("[dashboard] anomaly detection failed:", err);
-    anomalies = [];
-  }
 
   const shopFilter = user.selectedShopNames?.length ? new Set(user.selectedShopNames) : null;
 
@@ -245,8 +209,15 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Anomaly alerts */}
-      <AnomalyAlerts anomalies={anomalies} isRu={isRu} />
+      {/* Anomaly alerts — streamed separately so page loads without waiting */}
+      <Suspense fallback={
+        <div className="rounded-2xl px-4 py-3 flex items-center gap-3 animate-pulse" style={{ background: "#0D1526", border: "1px solid #1E293B" }}>
+          <div className="w-4 h-4 rounded-full shrink-0" style={{ background: "#1E293B" }} />
+          <div className="h-3 rounded w-48" style={{ background: "#1E293B" }} />
+        </div>
+      }>
+        <AnomalySectionServer />
+      </Suspense>
 
       {/* Secondary metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
