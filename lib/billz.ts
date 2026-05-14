@@ -530,7 +530,8 @@ export function aggregateSellerRows(raw: SellerDayRow[]): SellerStatRow[] {
 
   const map = new Map<string, SellerStatRow>();
   for (const r of raw) {
-    const key = r.seller_id || r.seller_name;
+    // Key by normalized name so the same person across multiple shops merges into one row
+    const key = (r.seller_name ?? "").trim().toLowerCase() || r.seller_id;
     const existing = map.get(key);
     if (!existing) {
       map.set(key, {

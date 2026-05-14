@@ -26,8 +26,9 @@ export const t = {
     reportBtn: "📊 Hisobot",
     changeTokenBtn: "🔑 Tokenni almashtirish",
     changeTokenPrompt: "Yangi Billz API tokeningizni yuboring:",
-    weblinkText: (url: string) =>
-      `🌐 Dashboard havolasi:\n${url}\n\n⚠️ Bu havola faqat siz uchun. Boshqalar bilan ulashmang.`,
+    weblinkText: () =>
+      `🌐 Quyidagi tugma orqali Dashboard ga kiring.\n\n⚠️ Bu havola faqat siz uchun. Boshqalar bilan ulashmang.`,
+    weblinkBtn: "🌐 Dashboard ochish",
     weblinkRequireToken: "Dashboard ga kirish uchun avval Billz tokenni sozlang.",
     reportLoading: (name: string | null) => `⏳ ${name ? `${name}, h` : "H"}isobot tayyorlanmoqda...`,
     reportError: "Xatolik yuz berdi. Keyinroq qayta urinib ko'ring.",
@@ -93,8 +94,9 @@ export const t = {
     reportBtn: "📊 Отчёт",
     changeTokenBtn: "🔑 Сменить токен",
     changeTokenPrompt: "Отправьте новый API токен Billz:",
-    weblinkText: (url: string) =>
-      `🌐 Ссылка на Dashboard:\n${url}\n\n⚠️ Это ссылка только для вас. Не передавайте её другим.`,
+    weblinkText: () =>
+      `🌐 Нажмите кнопку ниже, чтобы войти в Dashboard.\n\n⚠️ Эта ссылка только для вас. Не передавайте её другим.`,
+    weblinkBtn: "🌐 Открыть Dashboard",
     weblinkRequireToken: "Для доступа к Dashboard сначала настройте токен Billz.",
     reportLoading: (name: string | null) => `⏳ ${name ? `${name}, ф` : "Ф"}ормирую отчёт...`,
     reportError: "Произошла ошибка. Попробуйте позже.",

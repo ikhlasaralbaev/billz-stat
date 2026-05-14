@@ -40,7 +40,7 @@ const LANG_KEYBOARD = {
 function getMainKeyboard(lang: Lang) {
   return {
     keyboard: [
-      [{ text: t[lang].reportBtn }],
+      [{ text: t[lang].reportBtn }, { text: t[lang].weblinkBtn }],
       [{ text: t[lang].changeTokenBtn }],
     ],
     resize_keyboard: true,
@@ -458,7 +458,11 @@ bot.command("weblink", async (ctx) => {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
   const url = `${baseUrl}/auth?token=${webToken}`;
-  await ctx.reply(t[lang].weblinkText(url));
+  await ctx.reply(t[lang].weblinkText(), {
+    reply_markup: {
+      inline_keyboard: [[{ text: t[lang].weblinkBtn, url }]],
+    },
+  });
 });
 
 // ── /sales ────────────────────────────────────────────────────────────────────
@@ -713,6 +717,27 @@ bot.on("text", async (ctx) => {
     const lang = getLang(user);
     awaitingToken.add(telegramId);
     await ctx.reply(t[lang].changeTokenPrompt, { reply_markup: { remove_keyboard: true } });
+    return;
+  }
+
+  // "🌐 Dashboard ochish" yoki "🌐 Открыть Dashboard" tugmasi
+  if (text === t.uz.weblinkBtn || text === t.ru.weblinkBtn) {
+    await connectDB();
+    const user = await User.findOne({ telegramId });
+    const lang = getLang(user);
+    if (!user?.billzToken) {
+      await ctx.reply(t[lang].weblinkRequireToken);
+      return;
+    }
+    const webToken = uuidv4();
+    await User.findOneAndUpdate({ telegramId }, { webToken });
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
+    const url = `${baseUrl}/auth?token=${webToken}`;
+    await ctx.reply(t[lang].weblinkText(), {
+      reply_markup: {
+        inline_keyboard: [[{ text: t[lang].weblinkBtn, url }]],
+      },
+    });
     return;
   }
 

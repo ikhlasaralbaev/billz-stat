@@ -153,7 +153,16 @@ Only report anomalies that genuinely need attention — not every small differen
     const result = toolBlock?.input as
       | { anomalies: Anomaly[] }
       | undefined;
-    const anomalies = result?.anomalies ?? [];
+    const raw = result?.anomalies ?? [];
+
+    // Deduplicate: keep first occurrence of each (entityName, type) pair
+    const seen = new Set<string>();
+    const anomalies = raw.filter((a) => {
+      const key = `${a.type}::${(a.entityName ?? "").trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
     if (cacheKey) {
       void setCache(
@@ -196,28 +205,51 @@ export async function detectShopAnomalies(
     const todayStr = nowUzt.toISOString().slice(0, 10);
     const currentHourUzt = nowUzt.getUTCHours();
 
-    const dailyLines = rows
-      .map((r) => {
-        const dateStr = r.date.slice(0, 10);
+    // Aggregate per-shop-per-day rows into daily totals (single row per date)
+    const dailyMap = new Map<string, { net_sales: number; orders: number; profit: number; returns: number; discount_sum: number; gross_sales: number }>();
+    for (const r of rows) {
+      const d = r.date.slice(0, 10);
+      const existing = dailyMap.get(d);
+      if (!existing) {
+        dailyMap.set(d, {
+          net_sales: r.net_gross_sales,
+          orders: r.orders_count,
+          profit: r.gross_profit,
+          returns: r.returns_count,
+          discount_sum: r.discount_sum,
+          gross_sales: r.gross_sales,
+        });
+      } else {
+        existing.net_sales += r.net_gross_sales;
+        existing.orders += r.orders_count;
+        existing.profit += r.gross_profit;
+        existing.returns += r.returns_count;
+        existing.discount_sum += r.discount_sum;
+        existing.gross_sales += r.gross_sales;
+      }
+    }
+    const dailySorted = Array.from(dailyMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+    const dailyLines = dailySorted
+      .map(([dateStr, d]) => {
         const isToday = dateStr === todayStr;
         const label = isToday
-          ? `- ${dateStr} (PARTIAL — ${currentHourUzt}:00 UZT, day not finished): net_sales=${fmt(r.net_gross_sales)}, orders=${r.orders_count}`
-          : `- ${dateStr}: net_sales=${fmt(r.net_gross_sales)}, orders=${r.orders_count}`;
+          ? `- ${dateStr} (PARTIAL — ${currentHourUzt}:00 UZT, day not finished): net_sales=${fmt(d.net_sales)}, orders=${d.orders}`
+          : `- ${dateStr}: net_sales=${fmt(d.net_sales)}, orders=${d.orders}`;
         return label;
       })
       .join("\n");
 
     const todayNote = `IMPORTANT: Today is ${todayStr}. Current time is ${currentHourUzt}:00 UZT (UTC+5). Today's data is INCOMPLETE — the day has not ended. Do NOT flag today as zero_sales_days or revenue_drop. If today has low sales, it may simply be because the day just started (especially if it's morning). Analyze today proportionally only if it's past 18:00 UZT.`;
 
-    const totalNetSales = rows.reduce((s, r) => s + r.net_gross_sales, 0);
-    const totalProfit = rows.reduce((s, r) => s + r.gross_profit, 0);
-    const totalOrders = rows.reduce((s, r) => s + r.orders_count, 0);
-    const totalReturns = rows.reduce((s, r) => s + r.returns_count, 0);
+    const totalNetSales = dailySorted.reduce((s, [, d]) => s + d.net_sales, 0);
+    const totalProfit = dailySorted.reduce((s, [, d]) => s + d.profit, 0);
+    const totalOrders = dailySorted.reduce((s, [, d]) => s + d.orders, 0);
+    const totalReturns = dailySorted.reduce((s, [, d]) => s + d.returns, 0);
     const avgCheque = totalOrders > 0 ? totalNetSales / totalOrders : 0;
-    const avgDiscount =
-      rows.length > 0
-        ? rows.reduce((s, r) => s + r.discount_percent, 0) / rows.length
-        : 0;
+    const totalGrossSales = dailySorted.reduce((s, [, d]) => s + d.gross_sales, 0);
+    const totalDiscountSum = dailySorted.reduce((s, [, d]) => s + d.discount_sum, 0);
+    const avgDiscount = totalGrossSales > 0 ? (totalDiscountSum / totalGrossSales) * 100 : 0;
 
     const langInstruction = isRu
       ? "Пиши message и recommendation на РУССКОМ языке."
@@ -262,7 +294,7 @@ Only report anomalies that genuinely need attention. Maximum 5 anomalies.`;
       requestParams: {
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
-        daysCount: rows.length,
+        daysCount: dailySorted.length,
       },
       responsePreview: {
         usage: message.usage,
@@ -290,14 +322,22 @@ Only report anomalies that genuinely need attention. Maximum 5 anomalies.`;
     const result = toolBlock?.input as
       | { anomalies: Anomaly[] }
       | undefined;
-    const anomalies = result?.anomalies ?? [];
+    const raw = result?.anomalies ?? [];
+
+    const seen = new Set<string>();
+    const anomalies = raw.filter((a) => {
+      const key = `${a.type}::${(a.entityName ?? "").trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
     if (cacheKey) {
       void setCache(
         cacheKey,
         userId,
         "anthropic/messages",
-        { daysCount: rows.length, period },
+        { daysCount: dailySorted.length, period },
         anomalies,
         15 * 60_000
       );

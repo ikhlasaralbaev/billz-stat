@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Anomaly, AnomalySeverity } from "@/types/anomaly";
 
 interface AnomalyAlertsProps {
@@ -15,14 +14,16 @@ function severityIcon(severity: AnomalySeverity): string {
   return "🔵";
 }
 
-function severityStyle(severity: AnomalySeverity): React.CSSProperties {
-  if (severity === "critical") {
-    return { background: "#1A0A0A", border: "1px solid #7F1D1D" };
-  }
-  if (severity === "warning") {
-    return { background: "#1A1200", border: "1px solid #78350F" };
-  }
-  return { background: "#0A0F1E", border: "1px solid #1E3A5F" };
+function severityBorder(severity: AnomalySeverity): string {
+  if (severity === "critical") return "#7F1D1D";
+  if (severity === "warning") return "#78350F";
+  return "#1E3A5F";
+}
+
+function severityBg(severity: AnomalySeverity): string {
+  if (severity === "critical") return "#1A0A0A";
+  if (severity === "warning") return "#1A1200";
+  return "#0A0F1E";
 }
 
 function severityEntityColor(severity: AnomalySeverity): string {
@@ -36,16 +37,9 @@ export default function AnomalyAlerts({
   isRu,
   title,
 }: AnomalyAlertsProps) {
-  const [expanded, setExpanded] = useState(false);
-
   if (anomalies.length === 0) return null;
 
-  const INITIAL_SHOW = 3;
-  const visible = expanded ? anomalies : anomalies.slice(0, INITIAL_SHOW);
-  const hasMore = anomalies.length > INITIAL_SHOW;
-
-  const heading =
-    title ?? (isRu ? "Аномалии" : "Anomaliyalar");
+  const heading = title ?? (isRu ? "Аномалии" : "Anomaliyalar");
 
   return (
     <div
@@ -66,13 +60,20 @@ export default function AnomalyAlerts({
         </span>
       </div>
 
-      {/* Anomaly cards */}
-      <div>
-        {visible.map((anomaly, idx) => (
+      {/* Carousel — 1 card on mobile, 2 on sm, 3 on lg */}
+      <div
+        className="flex overflow-x-auto gap-3 pb-1"
+        style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
+      >
+        {anomalies.map((anomaly, idx) => (
           <div
             key={idx}
-            className="rounded-xl p-3 mb-2 last:mb-0"
-            style={severityStyle(anomaly.severity)}
+            className="shrink-0 w-full sm:w-[calc(50%-6px)] lg:w-[calc(33.333%-8px)] rounded-xl p-3"
+            style={{
+              scrollSnapAlign: "start",
+              background: severityBg(anomaly.severity),
+              border: `1px solid ${severityBorder(anomaly.severity)}`,
+            }}
           >
             <div className="flex items-start gap-2">
               <span className="text-xs mt-0.5 shrink-0">
@@ -102,21 +103,10 @@ export default function AnomalyAlerts({
         ))}
       </div>
 
-      {/* Show more / less toggle */}
-      {hasMore && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-2 w-full text-xs py-1.5 rounded-lg transition-colors"
-          style={{ color: "#64748B", background: "#111827" }}
-        >
-          {expanded
-            ? isRu
-              ? "Скрыть"
-              : "Yashirish"
-            : isRu
-            ? `Показать ещё ${anomalies.length - INITIAL_SHOW}`
-            : `Yana ${anomalies.length - INITIAL_SHOW} ta ko'rsatish`}
-        </button>
+      {anomalies.length > 1 && (
+        <p className="text-xs mt-2 text-center" style={{ color: "#334155" }}>
+          {isRu ? "Листайте →" : "Suring →"}
+        </p>
       )}
     </div>
   );
