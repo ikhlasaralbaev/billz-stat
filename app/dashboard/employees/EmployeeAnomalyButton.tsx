@@ -37,7 +37,7 @@ export default function EmployeeAnomalyButton({
     return (
       <button
         onClick={handleClick}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors w-full sm:w-auto"
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors w-full sm:w-auto mb-2"
         style={{ background: "#0D1526", border: "1px solid #1E293B", color: "#A5B4FC" }}
       >
         <span style={{ fontSize: 15 }}>✦</span>
@@ -94,7 +94,7 @@ export default function EmployeeAnomalyButton({
   if (anomalies.length === 0) {
     return (
       <div
-        className="rounded-xl px-4 py-3 text-sm flex items-center gap-2"
+        className="rounded-xl px-4 py-3 text-sm flex items-center gap-2 mb-2"
         style={{ background: "#0A1A0A", border: "1px solid #14532D", color: "#86EFAC" }}
       >
         <span>✓</span>
@@ -103,5 +103,5 @@ export default function EmployeeAnomalyButton({
     );
   }
 
-  return <AnomalyAlerts anomalies={anomalies} isRu={isRu} />;
+  return <div className="mb-2"><AnomalyAlerts anomalies={anomalies} isRu={isRu} /></div>;
 }
