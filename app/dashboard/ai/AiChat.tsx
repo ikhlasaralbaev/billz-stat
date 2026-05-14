@@ -158,17 +158,14 @@ export default function AiChat({
       </div>
 
       {/* Command buttons */}
-      <div className="pt-4 mt-4" style={{ borderTop: "1px solid #1E293B" }}>
-        <p className="text-xs mb-3" style={{ color: "#475569" }}>
-          {isRu ? "Выберите тип анализа:" : "Tahlil turini tanlang:"}
-        </p>
-        <div className="flex flex-wrap gap-2">
+      <div className="pt-3 mt-3 shrink-0" style={{ borderTop: "1px solid #1E293B" }}>
+        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
           {COMMANDS.map((cmd) => (
             <button
               key={cmd.type}
               onClick={() => send(cmd)}
               disabled={pending || !hasReport}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer disabled:opacity-40 shrink-0"
               style={{ background: "#0D1526", border: "1px solid #1E293B", color: "#94A3B8" }}
             >
               <span>{cmd.emoji}</span>
