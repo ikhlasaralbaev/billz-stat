@@ -113,8 +113,10 @@ export default function AiChat({
               )}
               <div className={`flex items-end gap-2 ${isAi ? "" : "flex-row-reverse"}`}>
                 <Avatar ai={isAi} />
-                <div className={`flex flex-col gap-1 min-w-0 ${isAi ? "items-start" : "items-end"}`} style={{ maxWidth: "85%" }}>
-                  <Bubble ai={isAi}>{msg.text}</Bubble>
+                <div className={`flex-1 min-w-0 flex flex-col gap-1 ${isAi ? "items-start" : "items-end"}`}>
+                  <div className="max-w-[80%]">
+                    <Bubble ai={isAi}>{msg.text}</Bubble>
+                  </div>
                   <div className={`flex items-center gap-2 text-xs px-1 ${isAi ? "" : "flex-row-reverse"}`} style={{ color: "#334155" }}>
                     <span>{fmtTime(msg.createdAt)}</span>
                     {isAi && msg.totalTokens && (
