@@ -18,8 +18,8 @@ export default async function AiPage() {
   ]);
 
   return (
-    <div className="flex flex-col h-full space-y-3">
-      <div className="flex items-center gap-2.5">
+    <div className="flex flex-col h-full gap-3">
+      <div className="flex items-center gap-2.5 shrink-0">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#1E1B4B" }}>
           <Bot size={14} style={{ color: "#A5B4FC" }} />
         </div>
@@ -33,7 +33,9 @@ export default async function AiPage() {
         </div>
       </div>
 
-      <AiChat isRu={isRu} hasReport={!!report} initialMessages={initialMessages} />
+      <div className="flex-1 min-h-0">
+        <AiChat isRu={isRu} hasReport={!!report} initialMessages={initialMessages} />
+      </div>
     </div>
   );
 }

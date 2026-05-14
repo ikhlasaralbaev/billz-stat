@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LogOut, LayoutDashboard, Package, ShoppingCart, FileText, Menu, X, TrendingUp, Settings, Bot, Users } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, ShoppingCart, FileText, Menu, X, TrendingUp, Settings, Bot, Users, UserCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface NavItem {
@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard/sales", labelUz: "Sotuvlar", labelRu: "Продажи", Icon: ShoppingCart },
   { href: "/dashboard/reports", labelUz: "Hisobotlar", labelRu: "Отчёты", Icon: FileText },
   { href: "/dashboard/employees", labelUz: "Xodimlar", labelRu: "Сотрудники", Icon: Users },
+  { href: "/dashboard/clients", labelUz: "Mijozlar", labelRu: "Клиенты", Icon: UserCheck },
   { href: "/dashboard/ai", labelUz: "AI Tahlil", labelRu: "AI Анализ", Icon: Bot },
   { href: "/dashboard/settings", labelUz: "Sozlamalar", labelRu: "Настройки", Icon: Settings },
 ];
@@ -153,8 +154,8 @@ export default function AppShell({ children, lang, displayName, initial }: Props
         </header>
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 overflow-y-auto">
             {children}
           </div>
         </main>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import { runAiCommand, CommandType, ChatMessage } from "./actions";
-import { Bot, User, Loader2 } from "lucide-react";
+import { runAiCommand, sendCustomMessage, CommandType, ChatMessage } from "./actions";
+import { Bot, User, Loader2, SendHorizontal } from "lucide-react";
 
 interface Command {
   type: CommandType;
@@ -40,41 +40,86 @@ export default function AiChat({
   initialMessages: ChatMessage[];
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [inputText, setInputText] = useState("");
   const [pending, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, pending]);
 
+  function appendOptimistic(userText: string) {
+    setMessages((prev) => [...prev, { role: "user", text: userText, createdAt: new Date().toISOString() }]);
+  }
+
+  function onAiError() {
+    setMessages((prev) => [...prev, {
+      role: "ai",
+      text: isRu
+        ? "Ошибка при получении анализа. Попробуйте ещё раз."
+        : "Tahlil olishda xatolik. Qayta urinib ko'ring.",
+      createdAt: new Date().toISOString(),
+    }]);
+  }
+
   function send(cmd: Command) {
     if (pending) return;
     const label = `${cmd.emoji} ${isRu ? cmd.labelRu : cmd.labelUz}`;
-    // Optimistic user message (no createdAt yet — shown while loading)
-    setMessages((prev) => [...prev, { role: "user", text: label, createdAt: new Date().toISOString() }]);
-
+    appendOptimistic(label);
     startTransition(async () => {
       try {
         const saved = await runAiCommand(cmd.type, label);
-        // Replace optimistic user msg with persisted pair
         setMessages((prev) => [...prev.slice(0, -1), ...saved]);
       } catch {
-        setMessages((prev) => [...prev, {
-          role: "ai",
-          text: isRu
-            ? "Ошибка при получении анализа. Попробуйте ещё раз."
-            : "Tahlil olishda xatolik. Qayta urinib ko'ring.",
-          createdAt: new Date().toISOString(),
-        }]);
+        onAiError();
       }
     });
   }
 
-  // Group messages by date for date separators
-  let lastDate = "";
+  function sendCustom() {
+    const text = inputText.trim();
+    if (!text || pending) return;
+    setInputText("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+    appendOptimistic(text);
+    startTransition(async () => {
+      try {
+        const saved = await sendCustomMessage(text);
+        setMessages((prev) => [...prev.slice(0, -1), ...saved]);
+      } catch {
+        onAiError();
+      }
+    });
+  }
+
+  function handleTextareaChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInputText(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 96) + "px";
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendCustom();
+    }
+  }
+
+  const messagesWithSep = messages.reduce<Array<{ msg: ChatMessage; showDate: boolean; dateStr: string }>>(
+    (acc, msg) => {
+      const dateStr = fmtDate(msg.createdAt, isRu);
+      const prev = acc[acc.length - 1];
+      return [...acc, { msg, showDate: !prev || prev.dateStr !== dateStr, dateStr }];
+    },
+    []
+  );
 
   return (
-    <div className="flex flex-col w-full" style={{ height: "calc(100vh - 200px)", minHeight: "480px" }}>
+    <div className="flex flex-col w-full h-full" style={{ minHeight: "480px" }}>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1" style={{ overflowX: "hidden", width: "100%" }}>
@@ -86,8 +131,8 @@ export default function AiChat({
               <Bubble ai>
                 {hasReport
                   ? (isRu
-                      ? "Привет! Я анализирую данные вашего последнего отчёта. Выберите тип анализа ниже 👇"
-                      : "Salom! Oxirgi hisobotingiz ma'lumotlarini tahlil qilaman. Quyidan tahlil turini tanlang 👇")
+                      ? "Привет! Я анализирую данные вашего последнего отчёта. Выберите тип анализа ниже или напишите свой вопрос 👇"
+                      : "Salom! Oxirgi hisobotingiz ma'lumotlarini tahlil qilaman. Quyidan tahlil turini tanlang yoki o'z savolingizni yozing 👇")
                   : (isRu
                       ? "Нет данных для анализа. Сначала создайте отчёт на странице Дашборда."
                       : "Tahlil uchun ma'lumot yo'q. Avval Dashboard sahifasida hisobot yarating.")}
@@ -96,10 +141,7 @@ export default function AiChat({
           </div>
         )}
 
-        {messages.map((msg, i) => {
-          const dateStr = fmtDate(msg.createdAt, isRu);
-          const showDate = dateStr !== lastDate;
-          lastDate = dateStr;
+        {messagesWithSep.map(({ msg, showDate, dateStr }, i) => {
           const isAi = msg.role === "ai";
 
           return (
@@ -157,8 +199,10 @@ export default function AiChat({
         <div ref={bottomRef} />
       </div>
 
-      {/* Command buttons */}
-      <div className="pt-3 mt-3 shrink-0" style={{ borderTop: "1px solid #1E293B" }}>
+      {/* Bottom: command shortcuts + input */}
+      <div className="pt-3 mt-3 shrink-0 space-y-2" style={{ borderTop: "1px solid #1E293B" }}>
+
+        {/* Command shortcuts */}
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
           {COMMANDS.map((cmd) => (
             <button
@@ -173,8 +217,39 @@ export default function AiChat({
             </button>
           ))}
         </div>
-      </div>
 
+        {/* Text input */}
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={textareaRef}
+            value={inputText}
+            onChange={handleTextareaChange}
+            onKeyDown={handleKeyDown}
+            disabled={pending}
+            placeholder={isRu ? "Напишите вопрос... (Enter — отправить)" : "Savol yozing... (Enter — yuborish)"}
+            rows={1}
+            className="flex-1 resize-none rounded-xl px-3 py-2.5 text-sm"
+            style={{
+              background: "#0D1526",
+              border: "1px solid #1E293B",
+              color: "#E2E8F0",
+              outline: "none",
+              minHeight: "40px",
+              maxHeight: "96px",
+              lineHeight: "1.5",
+            }}
+          />
+          <button
+            onClick={sendCustom}
+            disabled={pending || !inputText.trim()}
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity disabled:opacity-30"
+            style={{ background: "#6366F1" }}
+          >
+            <SendHorizontal size={16} color="#fff" />
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }

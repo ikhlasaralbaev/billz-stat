@@ -700,6 +700,337 @@ export async function getSellerDailyRows(
   }
 }
 
+export interface ClientRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone_numbers: string[];
+  balance: number;
+  created_at: string;
+  last_transaction_date: string | null;
+  first_transaction_date: string | null;
+}
+
+export async function getClients(
+  token: string,
+  userId?: string,
+  limit = 200,
+  page = 1,
+): Promise<{ clients: ClientRow[]; count: number }> {
+  const url = `${BASE_V1}/client`;
+  const params = { limit, page };
+  const cacheKey = makeCacheKey(userId, url, params as Record<string, unknown>);
+  const cached = await getFromCache(cacheKey);
+  if (cached) return cached as { clients: ClientRow[]; count: number };
+
+  const t0 = Date.now();
+  try {
+    const res = await axios.get(url, {
+      headers: authHeaders(token),
+      params,
+    });
+    const clients: ClientRow[] = res.data.clients ?? [];
+    const count: number = res.data.count ?? 0;
+    const result = { clients, count };
+    void setCache(cacheKey, userId, url, params, result, 15 * 60_000);
+    logRequest({
+      userTelegramId: userId,
+      service: "billz",
+      method: "GET",
+      url,
+      requestParams: params as Record<string, unknown>,
+      responseStatus: res.status,
+      responseRowCount: clients.length,
+      responsePreview: clients[0] as unknown as Record<string, unknown> | undefined,
+      durationMs: Date.now() - t0,
+    });
+    return result;
+  } catch (err) {
+    logRequest({
+      userTelegramId: userId,
+      service: "billz",
+      method: "GET",
+      url,
+      requestParams: params as Record<string, unknown>,
+      responseStatus: (err as AxiosError)?.response?.status,
+      durationMs: Date.now() - t0,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    console.error("[billz] getClients failed:", err);
+    throw err;
+  }
+}
+
+export interface CustomerDetail {
+  id: string;
+  first_name: string;
+  last_name: string;
+  middle_name: string;
+  phone_numbers: string[];
+  gender: string;
+  date_of_birth: string;
+  registered_shop: { id: string; name: string };
+  purchase_amount: number;
+  average_purchase_amount: number;
+  visits_count: number;
+  top_transaction: number;
+  debt_amount: number;
+  balance: number;
+  average_discount: number;
+  average_products_count: number;
+  first_purchase_date: string | null;
+  last_purchase_date: string | null;
+  created_at: string;
+  groups: Array<{ id: string; name: string; discount_percent: number }>;
+  client_type: string;
+}
+
+export async function getClientDetail(
+  token: string,
+  customerId: string,
+  userId?: string,
+): Promise<CustomerDetail | null> {
+  const url = `${BASE_V1}/customer/${customerId}`;
+  const cacheKey = makeCacheKey(userId, url, {});
+  const cached = await getFromCache(cacheKey);
+  if (cached) return cached as CustomerDetail;
+
+  const t0 = Date.now();
+  try {
+    const res = await axios.get(url, { headers: authHeaders(token) });
+    const detail = res.data as CustomerDetail;
+    void setCache(cacheKey, userId, url, {}, detail, 15 * 60_000);
+    logRequest({
+      userTelegramId: userId,
+      service: "billz",
+      method: "GET",
+      url,
+      requestParams: {},
+      responseStatus: res.status,
+      responseRowCount: 1,
+      durationMs: Date.now() - t0,
+    });
+    return detail;
+  } catch (err) {
+    logRequest({
+      userTelegramId: userId,
+      service: "billz",
+      method: "GET",
+      url,
+      requestParams: {},
+      responseStatus: (err as AxiosError)?.response?.status,
+      durationMs: Date.now() - t0,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+export interface CustomerPurchaseRow {
+  created_at: string;
+  shop_id: string;
+  shop_name: string;
+  order_type: string;
+  order_number: string;
+  order_id: string;
+  seller_name: string;
+  seller_ids: string[];
+  customer_number: string;
+  customer_name: string;
+  customer_id: string;
+  phone_numbers: string[];
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  gross_sales: number;
+  net_sales: number;
+  net_sold_supply_sum: number;
+  net_profit: number;
+  discount_percent: number;
+  sold_measurement_value: number;
+  returned_measurement_value: number;
+}
+
+// Grouped view: one entry per order_id
+export interface ClientOrderSummary {
+  order_id: string;
+  order_number: string;
+  created_at: string;
+  shop_name: string;
+  seller_name: string;
+  order_type: string;
+  net_sales: number;
+  net_profit: number;
+  discount_percent: number;
+  products: Array<{ name: string; qty: number; net_sales: number }>;
+}
+
+export function groupPurchasesByOrder(rows: CustomerPurchaseRow[]): ClientOrderSummary[] {
+  const map = new Map<string, ClientOrderSummary>();
+  for (const r of rows) {
+    const key = r.order_id || r.order_number;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, {
+        order_id: r.order_id,
+        order_number: r.order_number,
+        created_at: r.created_at,
+        shop_name: r.shop_name,
+        seller_name: r.seller_name,
+        order_type: r.order_type,
+        net_sales: r.net_sales,
+        net_profit: r.net_profit,
+        discount_percent: r.discount_percent,
+        products: [{ name: r.product_name, qty: r.sold_measurement_value, net_sales: r.net_sales }],
+      });
+    } else {
+      existing.net_sales += r.net_sales;
+      existing.net_profit += r.net_profit;
+      existing.products.push({ name: r.product_name, qty: r.sold_measurement_value, net_sales: r.net_sales });
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+}
+
+// Fetches ALL purchase rows for the given shops and caches them.
+// The Billz customer-purchases-table API ignores customer_id filter for some accounts,
+// so we fetch all pages and filter client-side.
+async function fetchAllPurchaseRows(
+  token: string,
+  shopIds: string[],
+  userId?: string,
+): Promise<CustomerPurchaseRow[]> {
+  const url = `${BASE_V1}/customer-purchases-table`;
+  const today = new Date().toISOString().slice(0, 10);
+  const baseParams = {
+    start_date: "2020-01-01",
+    end_date: today,
+    limit: 500,
+    with_customers: true,
+    currency: "UZS",
+    shop_ids: shopIds.join(","),
+  };
+  const allCacheKey = makeCacheKey(userId, `${url}::all_purchases`, baseParams as Record<string, unknown>);
+  const allCached = await getFromCache(allCacheKey);
+  if (allCached) return allCached as CustomerPurchaseRow[];
+
+  const t0 = Date.now();
+  const firstRes = await axios.get(url, {
+    headers: authHeaders(token),
+    params: { ...baseParams, page: 1 },
+  });
+  const total: number = firstRes.data.count ?? 0;
+  const firstRows: CustomerPurchaseRow[] = firstRes.data.purchases ?? firstRes.data.puchases ?? [];
+  const totalPages = Math.ceil(total / 500);
+
+  let allRows: CustomerPurchaseRow[] = [...firstRows];
+
+  if (totalPages > 1) {
+    const pageNums = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+    // Fetch remaining pages in batches of 5 to avoid rate limits
+    for (let i = 0; i < pageNums.length; i += 5) {
+      const batch = pageNums.slice(i, i + 5);
+      const results = await Promise.all(
+        batch.map((page) =>
+          axios
+            .get(url, { headers: authHeaders(token), params: { ...baseParams, page } })
+            .then((r) => (r.data.purchases ?? r.data.puchases ?? []) as CustomerPurchaseRow[])
+            .catch(() => [] as CustomerPurchaseRow[]),
+        ),
+      );
+      for (const rows of results) allRows = allRows.concat(rows);
+    }
+  }
+
+  logRequest({
+    userTelegramId: userId,
+    service: "billz",
+    method: "GET",
+    url,
+    requestParams: baseParams as Record<string, unknown>,
+    responseStatus: firstRes.status,
+    responseRowCount: allRows.length,
+    durationMs: Date.now() - t0,
+  });
+
+  void setCache(allCacheKey, userId, `${url}::all_purchases`, baseParams, allRows, 15 * 60_000);
+  return allRows;
+}
+
+export async function getClientPurchases(
+  token: string,
+  customerId: string,
+  shopIds: string[],
+  userId?: string,
+): Promise<CustomerPurchaseRow[]> {
+  const url = `${BASE_V1}/customer-purchases-table`;
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Try server-side customer_id filter first (works on some Billz accounts)
+  const filteredParams = {
+    start_date: "2020-01-01",
+    end_date: today,
+    limit: 500,
+    page: 1,
+    with_customers: true,
+    currency: "UZS",
+    shop_ids: shopIds.join(","),
+    customer_id: customerId,
+  };
+  const filteredCacheKey = makeCacheKey(userId, `${url}::${customerId}`, filteredParams as Record<string, unknown>);
+  const filteredCached = await getFromCache(filteredCacheKey);
+  if (filteredCached) return filteredCached as CustomerPurchaseRow[];
+
+  const t0 = Date.now();
+  try {
+    // First: probe with customer_id filter to check if API supports it
+    const probeRes = await axios.get(url, {
+      headers: authHeaders(token),
+      params: filteredParams,
+    });
+    const total: number = probeRes.data.count ?? 0;
+    const probeRows: CustomerPurchaseRow[] = probeRes.data.purchases ?? probeRes.data.puchases ?? [];
+
+    // If total is small (filter worked server-side), use these rows directly
+    if (total <= 500) {
+      const filtered = probeRows.filter((r) => r.customer_id === customerId);
+      void setCache(filteredCacheKey, userId, `${url}::${customerId}`, filteredParams, filtered, 15 * 60_000);
+      logRequest({
+        userTelegramId: userId,
+        service: "billz",
+        method: "GET",
+        url,
+        requestParams: filteredParams as Record<string, unknown>,
+        responseStatus: probeRes.status,
+        responseRowCount: filtered.length,
+        durationMs: Date.now() - t0,
+      });
+      return filtered;
+    }
+
+    // Filter was ignored — fetch all pages and filter client-side
+    const allRows = await fetchAllPurchaseRows(token, shopIds, userId);
+    const filtered = allRows.filter((r) => r.customer_id === customerId);
+    void setCache(filteredCacheKey, userId, `${url}::${customerId}`, filteredParams, filtered, 15 * 60_000);
+    return filtered;
+  } catch (err) {
+    logRequest({
+      userTelegramId: userId,
+      service: "billz",
+      method: "GET",
+      url,
+      requestParams: filteredParams as Record<string, unknown>,
+      responseStatus: (err as AxiosError)?.response?.status,
+      durationMs: Date.now() - t0,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    console.error("[billz] getClientPurchases failed:", err);
+    throw err;
+  }
+}
+
 // Returns rows from the product sales report for the given date range.
 // Each row = one product that was sold at least once in the period.
 export async function getProductSaleRows(

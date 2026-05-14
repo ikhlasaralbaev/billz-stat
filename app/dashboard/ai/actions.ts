@@ -13,6 +13,21 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export type CommandType = "general" | "deadstock" | "overstock" | "shops" | "revenue" | "sellers";
 
+function buildReportContext(report: IReport): string {
+  const t = report.today;
+  const y = report.yesterday;
+  const lines = [
+    `Bugungi hisobot (${t.date ?? ""}):`,
+    `  Sotuv: ${fmt(t.netGrossSales)}, Foyda: ${fmt(t.grossProfit)} (${t.profitMargin.toFixed(1)}%)`,
+    `  Cheklar: ${t.ordersCount} ta, O'rtacha chek: ${fmt(t.averageCheque)}`,
+    `  Chegirma: ${fmt(t.discountSum)}, Qaytarish: ${t.returnsCount} ta`,
+    `Kechagi hisobot: Sotuv ${fmt(y.netGrossSales)}, Foyda ${fmt(y.grossProfit)}, ${y.ordersCount} chek`,
+    `Do'konlar: ${report.shops.map((s) => `${s.shopName} ${fmt(s.today.netGrossSales)}`).join(" | ")}`,
+    `Dead stock: ${report.deadStock.length} mahsulot, Overstock: ${report.overstock.length} mahsulot`,
+  ];
+  return lines.join("\n");
+}
+
 const fmt = (n: number) => new Intl.NumberFormat("uz-UZ").format(Math.round(n)) + " UZS";
 
 function buildPrompt(report: IReport, type: CommandType, isRu: boolean): string {
@@ -203,6 +218,94 @@ export async function runAiCommand(type: CommandType, userLabel: string): Promis
 
   return [
     { role: "user", text: userLabel, createdAt: userDoc.createdAt.toISOString() },
+    {
+      role: "ai",
+      text: aiText,
+      createdAt: aiDoc.createdAt.toISOString(),
+      aiModel: message.model,
+      totalTokens: message.usage.input_tokens + message.usage.output_tokens,
+      durationMs,
+    },
+  ];
+}
+
+export async function sendCustomMessage(userText: string): Promise<ChatMessage[]> {
+  const user = await getDashboardUser();
+  if (!user) redirect("/auth/error");
+
+  const isRu = user.language === "ru";
+
+  await connectDB();
+
+  const [report, historyDocs] = await Promise.all([
+    getLatestReport(user.telegramId, user.billzToken),
+    AiMessage.find(
+      { telegramId: user.telegramId, billzToken: user.billzToken ?? null },
+      { role: 1, text: 1, _id: 0 }
+    ).sort({ createdAt: -1 }).limit(6).lean(),
+  ]);
+
+  const context = report ? buildReportContext(report) : "";
+  const systemContent = [
+    "Siz retail biznes maslahatchi AI siz. Foydalanuvchining do'koni haqida savollarga javob bering.",
+    context ? `Do'kon ma'lumotlari:\n${context}` : "",
+    isRu
+      ? "Javobni RUSCHA yoz. Markdown ishlatma (#, **, __). Faqat emoji va oddiy matn. Qisqa va aniq bo'l."
+      : "Javobni O'ZBEKCHA yoz. Markdown ishlatma (#, **, __). Faqat emoji va oddiy matn. Qisqa va aniq bo'l.",
+  ].filter(Boolean).join("\n\n");
+
+  const history = [...historyDocs].reverse();
+  const messagesForApi: Array<{ role: "user" | "assistant"; content: string }> = [
+    ...history.map((m) => ({
+      role: (m.role === "ai" ? "assistant" : "user") as "user" | "assistant",
+      content: m.text as string,
+    })),
+    { role: "user", content: userText },
+  ];
+
+  const userDoc = await AiMessage.create({
+    telegramId: user.telegramId,
+    billzToken: user.billzToken ?? null,
+    role: "user",
+    text: userText,
+  });
+
+  const startedAt = Date.now();
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    system: systemContent,
+    messages: messagesForApi,
+  });
+  const durationMs = Date.now() - startedAt;
+
+  logRequest({
+    userTelegramId: String(user.telegramId),
+    service: "anthropic",
+    method: "POST",
+    url: "anthropic/messages",
+    requestParams: { model: "claude-sonnet-4-6", max_tokens: 1024, customMessage: true },
+    responsePreview: { usage: message.usage },
+    durationMs,
+  });
+
+  const raw = message.content[0].type === "text" ? message.content[0].text : "";
+  const aiText = cleanMarkdown(raw);
+
+  const aiDoc = await AiMessage.create({
+    telegramId: user.telegramId,
+    billzToken: user.billzToken ?? null,
+    role: "ai",
+    text: aiText,
+    aiModel: message.model,
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
+    totalTokens: message.usage.input_tokens + message.usage.output_tokens,
+    durationMs,
+  });
+
+  return [
+    { role: "user", text: userText, createdAt: userDoc.createdAt.toISOString() },
     {
       role: "ai",
       text: aiText,
