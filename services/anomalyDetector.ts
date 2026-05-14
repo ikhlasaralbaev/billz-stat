@@ -65,7 +65,7 @@ export async function detectSellerAnomalies(
   try {
     if (cacheKey) {
       const cached = await getFromCache(cacheKey);
-      if (cached) return cached as Anomaly[];
+      if (Array.isArray(cached) && cached.length > 0) return cached as Anomaly[];
     }
 
     const fmt = (n: number) =>
@@ -74,7 +74,7 @@ export async function detectSellerAnomalies(
     const sellerLines = sellers
       .map(
         (s) =>
-          `- ${s.seller_name}: net_sales=${fmt(s.net_gross_sales)}, profit=${fmt(s.gross_profit)}, discount=${s.discount_percent.toFixed(1)}%, returns=${s.returns_count}, avg_cheque=${fmt(s.average_cheque)}, orders=${s.sales}`
+          `- ${s.seller_name}: net_sales=${fmt(s.net_gross_sales)}, profit=${fmt(s.gross_profit)}, discount=${s.discount_percent.toFixed(1)}%, returns=${s.returns_count} units, products_sold=${Math.round(s.products_sold)}, avg_cheque=${fmt(s.average_cheque)}, orders=${s.sales}`
       )
       .join("\n");
 
@@ -87,25 +87,28 @@ export async function detectSellerAnomalies(
     const currentHourUzt = nowUzt.getUTCHours();
     const todayNote = `IMPORTANT: Today is ${todayStr}, current time is ${currentHourUzt}:00 UZT. If the period includes today, seller data for today is INCOMPLETE. Low today-only figures are expected in the morning. Do not penalize sellers for low numbers if the period is "today" and it is before 14:00 UZT.`;
 
-    const prompt = `You are a retail analytics expert. Analyze seller performance data for the period: ${period}.
+    const periodLabel = period === "today" ? "today" : period === "7d" ? "last 7 days" : "last 30 days";
+
+    const prompt = `You are a retail analytics expert. Analyze seller performance data for the ${periodLabel}.
 
 ${todayNote}
 
 Total sellers: ${sellers.length}
+NOTE: "returns" = measurement units returned (pieces/kg). "products_sold" = total units sold. Return rate = returns/products_sold * 100%.
 
 Seller data:
 ${sellerLines}
 
-Compare sellers against each other and against healthy retail benchmarks. Detect:
-- Who is significantly below average in sales or profit
-- Who has high discount percentages (>15% is concerning, >25% is critical)
-- Who has many returns compared to peers
-- Who has low profit margin (<10% is concerning)
-- Who has unusually low average cheque compared to peers
+Compare sellers against each other and against healthy retail benchmarks. Flag these specific issues:
+- Profit margin <15% is concerning, <10% is critical
+- Discount percentage >15% is concerning, >25% is critical
+- Return rate (returns/products_sold) >20% is concerning, >40% is critical — also flag if one seller's returns are 3x higher than peers
+- Seller whose sales are less than 50% of the top performer (unless period is today)
+- Average cheque 30% below the group median
 
 ${langInstruction}
 
-Only report anomalies that genuinely need attention — not every small difference. Maximum 6 anomalies.`;
+Flag issues that clearly stand out. Maximum 5 anomalies.`;
 
     const t0 = Date.now();
     const message = await client.messages.create({
@@ -196,7 +199,7 @@ export async function detectShopAnomalies(
   try {
     if (cacheKey) {
       const cached = await getFromCache(cacheKey);
-      if (cached) return cached as Anomaly[];
+      if (Array.isArray(cached) && cached.length > 0) return cached as Anomaly[];
     }
 
     const fmt = (n: number) =>

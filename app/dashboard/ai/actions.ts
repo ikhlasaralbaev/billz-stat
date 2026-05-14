@@ -6,7 +6,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { IReport } from "@/models/Report";
 import AiMessage from "@/models/AiMessage";
 import { connectDB } from "@/lib/db";
-import { getToken, getShops, getSellerStats, SellerStatRow } from "@/lib/billz";
+import { getToken, getShops, SellerStatRow } from "@/lib/billz";
+import { getCachedSellerStats } from "@/services/sellerCache";
 import { logRequest } from "@/lib/requestLogger";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -160,7 +161,7 @@ export async function runAiCommand(type: CommandType, userLabel: string): Promis
       : (await getShops(token, userId)).map((s) => s.id);
     const today = toDateStr(new Date());
     const startDate = toDateStr(new Date(Date.now() - 30 * 86400000));
-    const sellers = await getSellerStats(token, shopIds, startDate, today, userId);
+    const sellers = await getCachedSellerStats(user!, token, shopIds, startDate, today);
     const sorted = [...sellers].sort((a, b) => b.net_gross_sales - a.net_gross_sales);
     prompt = buildSellersPrompt(sorted, isRu);
   } else {
