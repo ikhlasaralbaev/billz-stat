@@ -6,7 +6,6 @@ import { getCachedSellerRows } from "@/services/sellerCache";
 import Anthropic from "@anthropic-ai/sdk";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
-import PeriodTabs from "../PeriodTabs";
 import SalesChart from "./SalesChart";
 import { logRequest } from "@/lib/requestLogger";
 
@@ -228,29 +227,26 @@ export default async function SellerDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Link
-            href={`/dashboard/employees?period=${period}`}
-            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors"
-            style={{ background: "#0D1526", color: "#64748B" }}
-          >
-            <ArrowLeft size={14} />
-          </Link>
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
-            style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", color: "#fff" }}
-          >
-            {initials || "?"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-semibold text-white truncate">{totals.name}</h1>
-            <p className="text-xs" style={{ color: "#64748B" }}>
-              {isRu ? "Индивидуальный анализ" : "Individual tahlil"}
-            </p>
-          </div>
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/dashboard/employees?period=${period}`}
+          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+          style={{ background: "#0D1526", color: "#64748B" }}
+        >
+          <ArrowLeft size={14} />
+        </Link>
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+          style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", color: "#fff" }}
+        >
+          {initials || "?"}
         </div>
-        <PeriodTabs period={period} isRu={isRu} />
+        <div className="flex-1 min-w-0">
+          <h1 className="text-base font-semibold text-white truncate">{totals.name}</h1>
+          <p className="text-xs" style={{ color: "#64748B" }}>
+            {isRu ? "Индивидуальный анализ" : "Individual tahlil"}
+          </p>
+        </div>
       </div>
 
       {/* Stat cards */}

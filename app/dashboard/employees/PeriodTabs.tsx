@@ -8,16 +8,27 @@ const PERIODS = [
   { key: "30d",   labelUz: "30 kun", labelRu: "30 дней" },
 ];
 
-export default function PeriodTabs({ period, isRu }: { period: string; isRu: boolean }) {
+export default function PeriodTabs({
+  period,
+  isRu,
+  fullWidthMobile = false,
+}: {
+  period: string;
+  isRu: boolean;
+  fullWidthMobile?: boolean;
+}) {
   return (
-    <div className="flex items-center gap-1 p-1 rounded-xl shrink-0" style={{ background: "#0D1526" }}>
+    <div
+      className={`flex items-center gap-1 p-1 rounded-xl${fullWidthMobile ? " w-full sm:w-auto" : " shrink-0"}`}
+      style={{ background: "#0D1526" }}
+    >
       {PERIODS.map(({ key, labelUz, labelRu }) => {
         const active = period === key;
         return (
           <Link
             key={key}
             href={`/dashboard/employees?period=${key}`}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-center${fullWidthMobile ? " flex-1" : ""}`}
             style={
               active
                 ? { background: "#6366F1", color: "#fff" }

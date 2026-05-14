@@ -121,7 +121,7 @@ export default async function DashboardPage() {
   const y = filteredShops.length > 0 ? sumStats(filteredShops, "yesterday") : report.yesterday;
   const reportDate = new Date(report.createdAt ?? Date.now());
   const dateStr = reportDate.toLocaleDateString(isRu ? "ru-RU" : "uz-UZ", {
-    day: "numeric", month: "long", year: "numeric",
+    day: "numeric", month: "short",
   });
   const hoursAgo = Math.floor((Date.now() - reportDate.getTime()) / 3600000);
   const isStale = hoursAgo >= 24;

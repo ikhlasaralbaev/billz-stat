@@ -63,7 +63,7 @@ export default async function EmployeesPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
@@ -80,7 +80,7 @@ export default async function EmployeesPage({
             </p>
           </div>
         </div>
-        <PeriodTabs period={period} isRu={isRu} />
+        <PeriodTabs period={period} isRu={isRu} fullWidthMobile />
       </div>
 
       <AnomalyAlerts anomalies={anomalies} isRu={isRu} />
