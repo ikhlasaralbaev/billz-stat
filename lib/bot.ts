@@ -37,10 +37,8 @@ const LANG_KEYBOARD = {
 };
 
 function getMainKeyboard(lang: Lang) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return {
     keyboard: [
-      [{ text: lang === "ru" ? "📊 Открыть Dashboard" : "📊 Dashboardni ochish", web_app: { url: `${appUrl}/webapp` } }],
       [{ text: t[lang].reportBtn }],
       [{ text: t[lang].changeTokenBtn }],
     ],

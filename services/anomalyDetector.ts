@@ -109,7 +109,7 @@ Only report anomalies that genuinely need attention — not every small differen
 
     const t0 = Date.now();
     const message = await client.messages.create({
-      model: "claude-haiku-4-5",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
       tools: [REPORT_ANOMALIES_TOOL],
       tool_choice: { type: "tool", name: "report_anomalies" },
@@ -123,7 +123,7 @@ Only report anomalies that genuinely need attention — not every small differen
       method: "POST",
       url: "anthropic/messages",
       requestParams: {
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         sellersCount: sellers.length,
       },
@@ -246,7 +246,7 @@ Only report anomalies that genuinely need attention. Maximum 5 anomalies.`;
 
     const t0 = Date.now();
     const message = await client.messages.create({
-      model: "claude-haiku-4-5",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
       tools: [REPORT_ANOMALIES_TOOL],
       tool_choice: { type: "tool", name: "report_anomalies" },
@@ -260,7 +260,7 @@ Only report anomalies that genuinely need attention. Maximum 5 anomalies.`;
       method: "POST",
       url: "anthropic/messages",
       requestParams: {
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         daysCount: rows.length,
       },
