@@ -7,6 +7,7 @@ import type { GeneralReportRow } from "@/lib/billz";
 import AnomalyAlerts from "./AnomalyAlerts";
 
 export default async function AnomalySectionServer() {
+  try {
   const user = await getDashboardUser();
   if (!user) return null;
 
@@ -33,9 +34,14 @@ export default async function AnomalySectionServer() {
     average_extra_charge: 0,
   }));
 
+  // Stable cache key — based on report count and most recent report date only
+  const latestDate = reports30d[0]?.createdAt
+    ? new Date(reports30d[0].createdAt).toISOString().slice(0, 10)
+    : "";
   const anomalyCacheKey = makeCacheKey(String(user.telegramId), "anomaly::shop", {
-    count: String(reports30d.length),
-    latest: String(reports30d[0]?.createdAt ?? ""),
+    period: "30d",
+    reportCount: String(reports30d.length),
+    latestDate,
   });
 
   const anomalies = await detectShopAnomalies(
@@ -47,4 +53,8 @@ export default async function AnomalySectionServer() {
   );
 
   return <AnomalyAlerts anomalies={anomalies} isRu={isRu} />;
+  } catch (err) {
+    console.error("[AnomalySectionServer] failed:", err);
+    return null;
+  }
 }

@@ -164,7 +164,9 @@ Only report anomalies that genuinely need attention — not every small differen
       return true;
     });
 
-    if (cacheKey) {
+    // Only cache non-empty results — empty arrays are not cached so the AI
+    // re-checks on the next request rather than serving stale "no anomalies"
+    if (cacheKey && anomalies.length > 0) {
       void setCache(
         cacheKey,
         userId,
@@ -332,7 +334,7 @@ Only report anomalies that genuinely need attention. Maximum 5 anomalies.`;
       return true;
     });
 
-    if (cacheKey) {
+    if (cacheKey && anomalies.length > 0) {
       void setCache(
         cacheKey,
         userId,

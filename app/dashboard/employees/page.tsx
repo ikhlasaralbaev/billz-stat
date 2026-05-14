@@ -3,13 +3,11 @@ import { redirect } from "next/navigation";
 import { getLang } from "@/lib/i18n";
 import { getToken, getShops, SellerStatRow } from "@/lib/billz";
 import { getCachedSellerStats } from "@/services/sellerCache";
+import { Suspense } from "react";
 import { Users } from "lucide-react";
 import PeriodTabs from "./PeriodTabs";
 import EmployeeTable from "./EmployeeTable";
-import AnomalyAlerts from "../components/AnomalyAlerts";
-import { detectSellerAnomalies } from "@/services/anomalyDetector";
-import { makeCacheKey } from "@/lib/billzCache";
-import type { Anomaly } from "@/types/anomaly";
+import EmployeeAnomalyServer from "./EmployeeAnomalyServer";
 
 function toDateStr(d: Date) {
   return new Date(d.getTime() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -37,11 +35,12 @@ export default async function EmployeesPage({
       ? toDateStr(new Date(Date.now() - 7 * 86400000))
       : toDateStr(new Date(Date.now() - 30 * 86400000));
 
-  const token = await getToken(user.billzToken);
+  const userId = String(user.telegramId);
+  const token = await getToken(user.billzToken, userId);
 
   const shopIds = user.selectedShopIds?.length
     ? user.selectedShopIds
-    : (await getShops(token)).map((s) => s.id);
+    : (await getShops(token, userId)).map((s) => s.id);
 
   let rows: SellerStatRow[] = [];
   let error = false;
@@ -52,14 +51,6 @@ export default async function EmployeesPage({
   }
 
   const sorted = [...rows].sort((a, b) => b.net_gross_sales - a.net_gross_sales);
-
-  let anomalies: Anomaly[] = [];
-  try {
-    const anomalyCacheKey = makeCacheKey(String(user.telegramId), "anomaly::sellers", { period, shopIds: shopIds.join(",") });
-    anomalies = await detectSellerAnomalies(sorted, period, isRu, String(user.telegramId), anomalyCacheKey);
-  } catch {
-    anomalies = [];
-  }
 
   return (
     <div className="space-y-6">
@@ -83,7 +74,14 @@ export default async function EmployeesPage({
         <PeriodTabs period={period} isRu={isRu} fullWidthMobile />
       </div>
 
-      <AnomalyAlerts anomalies={anomalies} isRu={isRu} />
+      <Suspense fallback={
+        <div className="rounded-2xl px-4 py-3 flex items-center gap-3 animate-pulse" style={{ background: "#0D1526", border: "1px solid #1E293B" }}>
+          <div className="w-4 h-4 rounded-full shrink-0" style={{ background: "#1E293B" }} />
+          <div className="h-3 rounded w-48" style={{ background: "#1E293B" }} />
+        </div>
+      }>
+        <EmployeeAnomalyServer period={period} />
+      </Suspense>
 
       {error ? (
         <div
