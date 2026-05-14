@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import { getLang } from "@/lib/i18n";
 import { getToken, getShops, SellerStatRow } from "@/lib/billz";
 import { getCachedSellerStats } from "@/services/sellerCache";
-import { Suspense } from "react";
 import EmployeeTable from "./EmployeeTable";
-import EmployeeAnomalyServer from "./EmployeeAnomalyServer";
+import EmployeeAnomalyButton from "./EmployeeAnomalyButton";
 import EmployeePageShell from "./EmployeePageShell";
 import { Users } from "lucide-react";
 
@@ -54,14 +53,14 @@ export default async function EmployeesPage({
 
   return (
     <EmployeePageShell period={period} isRu={isRu}>
-      <Suspense fallback={
-        <div className="rounded-2xl px-4 py-3 flex items-center gap-3 animate-pulse" style={{ background: "#0D1526", border: "1px solid #1E293B" }}>
-          <div className="w-4 h-4 rounded-full shrink-0" style={{ background: "#1E293B" }} />
-          <div className="h-3 rounded w-48" style={{ background: "#1E293B" }} />
-        </div>
-      }>
-        <EmployeeAnomalyServer sellers={sorted} period={period} shopIds={shopIds} userId={userId} isRu={isRu} />
-      </Suspense>
+      {!error && sorted.length > 0 && (
+        <EmployeeAnomalyButton
+          sellers={sorted}
+          period={period}
+          shopIds={shopIds}
+          isRu={isRu}
+        />
+      )}
 
       {error ? (
         <div
