@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Script from "next/script";
 
 export default function WebAppPage() {
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
 
-  function handleAuth() {
+  useEffect(() => {
+    // Telegram injects window.Telegram.WebApp before page load in its WebView.
+    // Give it a short tick to ensure the object is ready after hydration.
     const tg = (window as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initData: string } } }).Telegram?.WebApp;
+
     if (!tg) {
       setErrorMsg("Telegram WebApp topilmadi. Iltimos, botdan oching.");
       setStatus("error");
@@ -45,15 +47,10 @@ export default function WebAppPage() {
         setErrorMsg("Server bilan aloqa yo'q.");
         setStatus("error");
       });
-  }
+  }, [router]);
 
   return (
     <>
-      <Script
-        src="https://telegram.org/js/telegram-web-app.js"
-        strategy="beforeInteractive"
-        onReady={handleAuth}
-      />
       <div
         className="flex flex-col items-center justify-center min-h-screen gap-4"
         style={{ background: "#070B14" }}
