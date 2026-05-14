@@ -13,7 +13,7 @@ import GenerateReportButton from "./components/GenerateReportButton";
 import AnomalyAlerts from "./components/AnomalyAlerts";
 import { detectShopAnomalies } from "@/services/anomalyDetector";
 import { makeCacheKey } from "@/lib/billzCache";
-import { getToken, getShops, getGeneralReport } from "@/lib/billz";
+import type { GeneralReportRow } from "@/lib/billz";
 import type { Anomaly } from "@/types/anomaly";
 
 const fmt = (n: number) =>
@@ -36,28 +36,41 @@ export default async function DashboardPage() {
   const lang = getLang(user);
   const isRu = lang === "ru";
 
-  const [report, recentReports] = await Promise.all([
+  const [report, recentReports, reports30d] = await Promise.all([
     getLatestReport(user.telegramId, user.billzToken),
     getRecentReports(user.telegramId, 7, user.billzToken),
+    getRecentReports(user.telegramId, 30, user.billzToken),
   ]);
 
-  // Fetch general report rows and run anomaly detection
+  // Build synthetic rows from stored reports (no extra Billz API call needed)
   let anomalies: Anomaly[] = [];
   try {
-    if (user.billzToken) {
-      const token = await getToken(user.billzToken, String(user.telegramId));
-      const shopIds = user.selectedShopIds?.length
-        ? user.selectedShopIds
-        : (await getShops(token, String(user.telegramId))).map((s) => s.id);
-      const today = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const startDate = new Date(Date.now() + 5 * 60 * 60 * 1000 - 30 * 86400000).toISOString().slice(0, 10);
-      const period = `${startDate} – ${today}`;
-      const rows = await getGeneralReport(token, shopIds, startDate, today, String(user.telegramId));
-      const anomalyCacheKey = makeCacheKey(String(user.telegramId), "anomaly::shop", { period, shopIds: shopIds.join(",") });
-      anomalies = await detectShopAnomalies(rows, period, isRu, String(user.telegramId), anomalyCacheKey);
+    if (reports30d.length > 0) {
+      const syntheticRows: GeneralReportRow[] = reports30d.map((r) => ({
+        date: r.today?.date ?? new Date(r.createdAt).toISOString().slice(0, 10),
+        shop_id: "all",
+        shop_name: "All",
+        gross_sales: Number(r.today?.grossSales ?? 0),
+        net_gross_sales: Number(r.today?.netGrossSales ?? 0),
+        gross_profit: Number(r.today?.grossProfit ?? 0),
+        discount_sum: Number(r.today?.discountSum ?? 0),
+        discount_percent: 0,
+        sales_supply_price: 0,
+        transactions_count: Number(r.today?.ordersCount ?? 0),
+        orders_count: Number(r.today?.ordersCount ?? 0),
+        returns_count: Number(r.today?.returnsCount ?? 0),
+        products_sold: Number(r.today?.productsSold ?? 0),
+        average_cheque: Number(r.today?.averageCheque ?? 0),
+        average_extra_charge: 0,
+      }));
+      const anomalyCacheKey = makeCacheKey(String(user.telegramId), "anomaly::shop", {
+        count: String(reports30d.length),
+        latest: String(reports30d[0]?.createdAt ?? ""),
+      });
+      anomalies = await detectShopAnomalies(syntheticRows, "last 30 days", isRu, String(user.telegramId), anomalyCacheKey);
     }
-  } catch {
-    // Anomaly detection is non-critical — silently continue
+  } catch (err) {
+    console.error("[dashboard] anomaly detection failed:", err);
     anomalies = [];
   }
 
