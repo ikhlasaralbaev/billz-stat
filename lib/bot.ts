@@ -456,7 +456,7 @@ bot.command("weblink", async (ctx) => {
   const webToken = uuidv4();
   await User.findOneAndUpdate({ telegramId }, { webToken });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
   const url = `${baseUrl}/auth?token=${webToken}`;
   await ctx.reply(t[lang].weblinkText(url));
 });

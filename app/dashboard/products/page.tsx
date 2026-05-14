@@ -104,62 +104,89 @@ export default async function ProductsPage() {
             </span>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #1E293B" }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: "#0A0F1E", borderBottom: "1px solid #1E293B" }}>
-                  {[
-                    isRu ? "Товар" : "Mahsulot",
-                    isRu ? "Кол-во" : "Miqdor",
-                    isRu ? "Себестоимость" : "Tannarx",
-                    isRu ? "Цена продажи" : "Sotish narxi",
-                    isRu ? "Магазины" : "Do'konlar",
-                  ].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "#475569" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden rounded-2xl overflow-hidden" style={{ border: "1px solid #1E293B" }}>
+              <div className="divide-y" style={{ borderColor: "#0F172A" }}>
                 {deadStock.map((item, i) => (
-                  <tr
-                    key={item.sku || item.name}
-                    style={{
-                      background: i % 2 === 0 ? "#0D1526" : "#0A0F1E",
-                      borderBottom: "1px solid #0F172A",
-                    }}
-                  >
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-white">{item.name}</p>
-                      {item.sku && <p className="text-xs mt-0.5" style={{ color: "#475569" }}>{item.sku}</p>}
-                    </td>
-                    <td className="px-4 py-3 font-semibold" style={{ color: "#F87171" }}>
-                      {fmtQty(item.totalStock)} {isRu ? "шт." : "dona"}
-                    </td>
-                    <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtNum(item.totalSupplyCost)}</td>
-                    <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtNum(item.totalRetailValue)}</td>
-                    <td className="px-4 py-3">
+                  <div key={item.sku || item.name} className="px-4 py-3.5" style={{ background: i % 2 === 0 ? "#0D1526" : "#0A0F1E" }}>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">{item.name}</p>
+                        {item.sku && <p className="text-xs mt-0.5" style={{ color: "#475569" }}>{item.sku}</p>}
+                      </div>
+                      <span className="text-sm font-bold shrink-0" style={{ color: "#F87171" }}>
+                        {fmtQty(item.totalStock)} {isRu ? "шт." : "dona"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                      <div>
+                        <p style={{ color: "#475569" }}>{isRu ? "Себестоимость" : "Tannarx"}</p>
+                        <p className="font-medium text-white mt-0.5">{fmtNum(item.totalSupplyCost)}</p>
+                      </div>
+                      <div>
+                        <p style={{ color: "#475569" }}>{isRu ? "Цена продажи" : "Sotish narxi"}</p>
+                        <p className="font-medium text-white mt-0.5">{fmtNum(item.totalRetailValue)}</p>
+                      </div>
+                    </div>
+                    {(item.shopNames ?? []).length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {(item.shopNames ?? []).map((s) => (
                           <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#1E293B", color: "#94A3B8" }}>{s}</span>
                         ))}
                       </div>
-                    </td>
-                  </tr>
+                    )}
+                  </div>
                 ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ background: "#0A0F1E", borderTop: "1px solid #1E293B" }}>
-                  <td className="px-4 py-3 text-xs font-semibold" style={{ color: "#64748B" }}>
-                    {isRu ? `Итого: ${deadStock.length} вид(а)` : `Jami: ${deadStock.length} xil`}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#F87171" }}>{fmtQty(totalDeadQty)}</td>
-                  <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#F87171" }}>{fmtNum(totalDeadCost)}</td>
-                  <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#F87171" }}>{fmtNum(totalDeadRetail)}</td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+              </div>
+              <div className="px-4 py-3 flex justify-between items-center text-xs" style={{ background: "#0A0F1E", borderTop: "1px solid #1E293B" }}>
+                <span style={{ color: "#64748B" }}>{isRu ? `Итого: ${deadStock.length} вид(а)` : `Jami: ${deadStock.length} xil`}</span>
+                <span className="font-semibold" style={{ color: "#F87171" }}>{fmtNum(totalDeadCost)}</span>
+              </div>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block rounded-2xl overflow-hidden" style={{ border: "1px solid #1E293B" }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: "#0A0F1E", borderBottom: "1px solid #1E293B" }}>
+                    {[isRu ? "Товар" : "Mahsulot", isRu ? "Кол-во" : "Miqdor", isRu ? "Себестоимость" : "Tannarx", isRu ? "Цена продажи" : "Sotish narxi", isRu ? "Магазины" : "Do'konlar"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "#475569" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {deadStock.map((item, i) => (
+                    <tr key={item.sku || item.name} style={{ background: i % 2 === 0 ? "#0D1526" : "#0A0F1E", borderBottom: "1px solid #0F172A" }}>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-white">{item.name}</p>
+                        {item.sku && <p className="text-xs mt-0.5" style={{ color: "#475569" }}>{item.sku}</p>}
+                      </td>
+                      <td className="px-4 py-3 font-semibold" style={{ color: "#F87171" }}>{fmtQty(item.totalStock)} {isRu ? "шт." : "dona"}</td>
+                      <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtNum(item.totalSupplyCost)}</td>
+                      <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtNum(item.totalRetailValue)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {(item.shopNames ?? []).map((s) => (
+                            <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#1E293B", color: "#94A3B8" }}>{s}</span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: "#0A0F1E", borderTop: "1px solid #1E293B" }}>
+                    <td className="px-4 py-3 text-xs font-semibold" style={{ color: "#64748B" }}>{isRu ? `Итого: ${deadStock.length} вид(а)` : `Jami: ${deadStock.length} xil`}</td>
+                    <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#F87171" }}>{fmtQty(totalDeadQty)}</td>
+                    <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#F87171" }}>{fmtNum(totalDeadCost)}</td>
+                    <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#F87171" }}>{fmtNum(totalDeadRetail)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
       </section>
 
@@ -183,68 +210,111 @@ export default async function ProductsPage() {
             </span>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #1E293B" }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: "#0A0F1E", borderBottom: "1px solid #1E293B" }}>
-                  {[
-                    isRu ? "Товар" : "Mahsulot",
-                    isRu ? "Остаток" : "Qoldiq",
-                    isRu ? "Продаж/мес" : "Sotuv/oy",
-                    isRu ? "Запас (дней)" : "Zaxira (kun)",
-                    isRu ? "Себестоимость" : "Tannarx",
-                    isRu ? "Магазины" : "Do'konlar",
-                  ].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "#475569" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden rounded-2xl overflow-hidden" style={{ border: "1px solid #1E293B" }}>
+              <div className="divide-y" style={{ borderColor: "#0F172A" }}>
                 {overstock.map((item, i) => {
                   const days = item.daysOfStock === Infinity ? "∞" : `${item.daysOfStock}`;
                   const color = item.daysOfStock === Infinity || item.daysOfStock > 180 ? "#F87171"
                     : item.daysOfStock > 60 ? "#FB923C" : "#FCD34D";
                   return (
-                    <tr key={item.sku || item.name} style={{ background: i % 2 === 0 ? "#0D1526" : "#0A0F1E", borderBottom: "1px solid #0F172A" }}>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-white">{item.name}</p>
-                        {item.sku && <p className="text-xs mt-0.5" style={{ color: "#475569" }}>{item.sku}</p>}
-                      </td>
-                      <td className="px-4 py-3 font-semibold" style={{ color }}>{fmtQty(item.totalStock)} {isRu ? "шт." : "dona"}</td>
-                      <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtQty(item.soldLast30d)}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-semibold" style={{ color }}>{days}</span>
-                        {item.daysOfStock !== Infinity && (
-                          <div className="mt-1 h-1 rounded-full w-16" style={{ background: "#1E293B" }}>
-                            <div className="h-1 rounded-full" style={{ width: `${Math.min((30 / item.daysOfStock) * 100, 100)}%`, background: color }} />
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtNum(item.totalSupplyCost)}</td>
-                      <td className="px-4 py-3">
+                    <div key={item.sku || item.name} className="px-4 py-3.5" style={{ background: i % 2 === 0 ? "#0D1526" : "#0A0F1E" }}>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white">{item.name}</p>
+                          {item.sku && <p className="text-xs mt-0.5" style={{ color: "#475569" }}>{item.sku}</p>}
+                        </div>
+                        <span className="text-sm font-bold shrink-0" style={{ color }}>
+                          {days} {isRu ? "дн." : "kun"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                        <div>
+                          <p style={{ color: "#475569" }}>{isRu ? "Остаток" : "Qoldiq"}</p>
+                          <p className="font-medium text-white mt-0.5">{fmtQty(item.totalStock)} {isRu ? "шт." : "dona"}</p>
+                        </div>
+                        <div>
+                          <p style={{ color: "#475569" }}>{isRu ? "Прод./мес" : "Sotuv/oy"}</p>
+                          <p className="font-medium text-white mt-0.5">{fmtQty(item.soldLast30d)}</p>
+                        </div>
+                        <div>
+                          <p style={{ color: "#475569" }}>{isRu ? "Себест." : "Tannarx"}</p>
+                          <p className="font-medium text-white mt-0.5">{fmtNum(item.totalSupplyCost)}</p>
+                        </div>
+                      </div>
+                      {(item.shopNames ?? []).length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {(item.shopNames ?? []).map((s) => (
                             <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#1E293B", color: "#94A3B8" }}>{s}</span>
                           ))}
                         </div>
-                      </td>
-                    </tr>
+                      )}
+                    </div>
                   );
                 })}
-              </tbody>
-              <tfoot>
-                <tr style={{ background: "#0A0F1E", borderTop: "1px solid #1E293B" }}>
-                  <td className="px-4 py-3 text-xs font-semibold" style={{ color: "#64748B" }}>
-                    {isRu ? `Итого: ${overstock.length} вид(а)` : `Jami: ${overstock.length} xil`}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#FB923C" }}>{fmtQty(totalOverQty)}</td>
-                  <td /><td />
-                  <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#FB923C" }}>{fmtNum(totalOverCost)}</td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+              </div>
+              <div className="px-4 py-3 flex justify-between items-center text-xs" style={{ background: "#0A0F1E", borderTop: "1px solid #1E293B" }}>
+                <span style={{ color: "#64748B" }}>{isRu ? `Итого: ${overstock.length} вид(а)` : `Jami: ${overstock.length} xil`}</span>
+                <span className="font-semibold" style={{ color: "#FB923C" }}>{fmtNum(totalOverCost)}</span>
+              </div>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block rounded-2xl overflow-hidden" style={{ border: "1px solid #1E293B" }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: "#0A0F1E", borderBottom: "1px solid #1E293B" }}>
+                    {[isRu ? "Товар" : "Mahsulot", isRu ? "Остаток" : "Qoldiq", isRu ? "Продаж/мес" : "Sotuv/oy", isRu ? "Запас (дней)" : "Zaxira (kun)", isRu ? "Себестоимость" : "Tannarx", isRu ? "Магазины" : "Do'konlar"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "#475569" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {overstock.map((item, i) => {
+                    const days = item.daysOfStock === Infinity ? "∞" : `${item.daysOfStock}`;
+                    const color = item.daysOfStock === Infinity || item.daysOfStock > 180 ? "#F87171"
+                      : item.daysOfStock > 60 ? "#FB923C" : "#FCD34D";
+                    return (
+                      <tr key={item.sku || item.name} style={{ background: i % 2 === 0 ? "#0D1526" : "#0A0F1E", borderBottom: "1px solid #0F172A" }}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-white">{item.name}</p>
+                          {item.sku && <p className="text-xs mt-0.5" style={{ color: "#475569" }}>{item.sku}</p>}
+                        </td>
+                        <td className="px-4 py-3 font-semibold" style={{ color }}>{fmtQty(item.totalStock)} {isRu ? "шт." : "dona"}</td>
+                        <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtQty(item.soldLast30d)}</td>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold" style={{ color }}>{days}</span>
+                          {item.daysOfStock !== Infinity && (
+                            <div className="mt-1 h-1 rounded-full w-16" style={{ background: "#1E293B" }}>
+                              <div className="h-1 rounded-full" style={{ width: `${Math.min((30 / item.daysOfStock) * 100, 100)}%`, background: color }} />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3" style={{ color: "#94A3B8" }}>{fmtNum(item.totalSupplyCost)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {(item.shopNames ?? []).map((s) => (
+                              <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#1E293B", color: "#94A3B8" }}>{s}</span>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: "#0A0F1E", borderTop: "1px solid #1E293B" }}>
+                    <td className="px-4 py-3 text-xs font-semibold" style={{ color: "#64748B" }}>{isRu ? `Итого: ${overstock.length} вид(а)` : `Jami: ${overstock.length} xil`}</td>
+                    <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#FB923C" }}>{fmtQty(totalOverQty)}</td>
+                    <td /><td />
+                    <td className="px-4 py-3 font-semibold text-xs" style={{ color: "#FB923C" }}>{fmtNum(totalOverCost)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
 
         {overstock.length > 0 && (
