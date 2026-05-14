@@ -6,6 +6,10 @@ import { getCachedSellerStats } from "@/services/sellerCache";
 import { Users } from "lucide-react";
 import PeriodTabs from "./PeriodTabs";
 import EmployeeTable from "./EmployeeTable";
+import AnomalyAlerts from "../components/AnomalyAlerts";
+import { detectSellerAnomalies } from "@/services/anomalyDetector";
+import { makeCacheKey } from "@/lib/billzCache";
+import type { Anomaly } from "@/types/anomaly";
 
 function toDateStr(d: Date) {
   return new Date(d.getTime() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -49,6 +53,14 @@ export default async function EmployeesPage({
 
   const sorted = [...rows].sort((a, b) => b.net_gross_sales - a.net_gross_sales);
 
+  let anomalies: Anomaly[] = [];
+  try {
+    const anomalyCacheKey = makeCacheKey(String(user.telegramId), "anomaly::sellers", { period, shopIds: shopIds.join(",") });
+    anomalies = await detectSellerAnomalies(sorted, period, isRu, String(user.telegramId), anomalyCacheKey);
+  } catch {
+    anomalies = [];
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -70,6 +82,8 @@ export default async function EmployeesPage({
         </div>
         <PeriodTabs period={period} isRu={isRu} />
       </div>
+
+      <AnomalyAlerts anomalies={anomalies} isRu={isRu} />
 
       {error ? (
         <div

@@ -10,6 +10,11 @@ import DeadStockTable from "./components/DeadStockTable";
 import OverstockTable from "./components/OverstockTable";
 import RevenueHistory from "./components/RevenueHistory";
 import GenerateReportButton from "./components/GenerateReportButton";
+import AnomalyAlerts from "./components/AnomalyAlerts";
+import { detectShopAnomalies } from "@/services/anomalyDetector";
+import { makeCacheKey } from "@/lib/billzCache";
+import { getToken, getShops, getGeneralReport } from "@/lib/billz";
+import type { Anomaly } from "@/types/anomaly";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("uz-UZ", { notation: "compact", maximumFractionDigits: 1 }).format(
@@ -35,6 +40,26 @@ export default async function DashboardPage() {
     getLatestReport(user.telegramId, user.billzToken),
     getRecentReports(user.telegramId, 7, user.billzToken),
   ]);
+
+  // Fetch general report rows and run anomaly detection
+  let anomalies: Anomaly[] = [];
+  try {
+    if (user.billzToken) {
+      const token = await getToken(user.billzToken, String(user.telegramId));
+      const shopIds = user.selectedShopIds?.length
+        ? user.selectedShopIds
+        : (await getShops(token, String(user.telegramId))).map((s) => s.id);
+      const today = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const startDate = new Date(Date.now() + 5 * 60 * 60 * 1000 - 30 * 86400000).toISOString().slice(0, 10);
+      const period = `${startDate} – ${today}`;
+      const rows = await getGeneralReport(token, shopIds, startDate, today, String(user.telegramId));
+      const anomalyCacheKey = makeCacheKey(String(user.telegramId), "anomaly::shop", { period, shopIds: shopIds.join(",") });
+      anomalies = await detectShopAnomalies(rows, period, isRu, String(user.telegramId), anomalyCacheKey);
+    }
+  } catch {
+    // Anomaly detection is non-critical — silently continue
+    anomalies = [];
+  }
 
   const shopFilter = user.selectedShopNames?.length ? new Set(user.selectedShopNames) : null;
 
@@ -206,6 +231,9 @@ export default async function DashboardPage() {
           accent="#8B5CF6"
         />
       </div>
+
+      {/* Anomaly alerts */}
+      <AnomalyAlerts anomalies={anomalies} isRu={isRu} />
 
       {/* Secondary metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
