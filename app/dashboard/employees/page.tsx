@@ -4,10 +4,10 @@ import { getLang } from "@/lib/i18n";
 import { getToken, getShops, SellerStatRow } from "@/lib/billz";
 import { getCachedSellerStats } from "@/services/sellerCache";
 import { Suspense } from "react";
-import { Users } from "lucide-react";
-import PeriodTabs from "./PeriodTabs";
 import EmployeeTable from "./EmployeeTable";
 import EmployeeAnomalyServer from "./EmployeeAnomalyServer";
+import EmployeePageShell from "./EmployeePageShell";
+import { Users } from "lucide-react";
 
 function toDateStr(d: Date) {
   return new Date(d.getTime() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -53,27 +53,7 @@ export default async function EmployeesPage({
   const sorted = [...rows].sort((a, b) => b.net_gross_sales - a.net_gross_sales);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: "#1E1B4B" }}
-          >
-            <Users size={14} style={{ color: "#A5B4FC" }} />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold text-white">
-              {isRu ? "Сотрудники" : "Xodimlar"}
-            </h1>
-            <p className="text-xs" style={{ color: "#64748B" }}>
-              {isRu ? "Эффективность продавцов" : "Sotuvchilar samaradorligi"}
-            </p>
-          </div>
-        </div>
-        <PeriodTabs period={period} isRu={isRu} fullWidthMobile />
-      </div>
-
+    <EmployeePageShell period={period} isRu={isRu}>
       <Suspense fallback={
         <div className="rounded-2xl px-4 py-3 flex items-center gap-3 animate-pulse" style={{ background: "#0D1526", border: "1px solid #1E293B" }}>
           <div className="w-4 h-4 rounded-full shrink-0" style={{ background: "#1E293B" }} />
@@ -105,6 +85,6 @@ export default async function EmployeesPage({
       ) : (
         <EmployeeTable rows={sorted} isRu={isRu} period={period} />
       )}
-    </div>
+    </EmployeePageShell>
   );
 }
