@@ -9,44 +9,53 @@ export default function WebAppPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // Telegram injects window.Telegram.WebApp before page load in its WebView.
-    // Give it a short tick to ensure the object is ready after hydration.
-    const tg = (window as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initData: string } } }).Telegram?.WebApp;
+    type TgWindow = { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initData: string } } };
 
-    if (!tg) {
-      setErrorMsg("Telegram WebApp topilmadi. Iltimos, botdan oching.");
-      setStatus("error");
-      return;
-    }
+    function tryAuth(attempts = 0) {
+      const tg = (window as TgWindow).Telegram?.WebApp;
 
-    tg.ready();
-    tg.expand();
-
-    const initData = tg.initData;
-    if (!initData) {
-      setErrorMsg("initData yo'q. Iltimos, botdan oching.");
-      setStatus("error");
-      return;
-    }
-
-    fetch("/api/auth/webapp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.ok) {
-          router.replace("/dashboard");
-        } else {
-          setErrorMsg(data.error ?? "Autentifikatsiya xatosi.");
-          setStatus("error");
+      // Retry up to 10 times (1 second total) in case the script isn't ready yet
+      if (!tg) {
+        if (attempts < 10) {
+          setTimeout(() => tryAuth(attempts + 1), 100);
+          return;
         }
-      })
-      .catch(() => {
-        setErrorMsg("Server bilan aloqa yo'q.");
+        setErrorMsg("Telegram WebApp yuklanmadi. Iltimos, Telegram ilovasidan oching.");
         setStatus("error");
-      });
+        return;
+      }
+
+      tg.ready();
+      tg.expand();
+
+      const initData = tg.initData;
+      if (!initData) {
+        setErrorMsg("initData yo'q. Iltimos, botdan oching.");
+        setStatus("error");
+        return;
+      }
+
+      fetch("/api/auth/webapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok) {
+            router.replace("/dashboard");
+          } else {
+            setErrorMsg(data.error ?? "Autentifikatsiya xatosi.");
+            setStatus("error");
+          }
+        })
+        .catch(() => {
+          setErrorMsg("Server bilan aloqa yo'q.");
+          setStatus("error");
+        });
+    }
+
+    tryAuth();
   }, [router]);
 
   return (
