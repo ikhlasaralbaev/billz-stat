@@ -9,6 +9,7 @@ import Report from "@/models/Report";
 import AiAnalysis from "@/models/AiAnalysis";
 import { t, getLang, Lang } from "@/lib/i18n";
 import { v4 as uuidv4 } from "uuid";
+import { clearUserCache } from "@/lib/billzCache";
 
 // UTC+5 (Tashkent) offset
 function toDateStr(date: Date): string {
@@ -744,7 +745,9 @@ bot.on("text", async (ctx) => {
 
   try {
     const token = await getToken(billzToken);
-    await getShops(token, String(telegramId)); // validate + warm cache for this user
+    // Clear old cache before validating — ensures fresh data for new token
+    await clearUserCache(String(telegramId));
+    await getShops(token, String(telegramId)); // validate + warm cache for new token
 
     const profile = extractTelegramProfile(ctx.from);
     await User.findOneAndUpdate(

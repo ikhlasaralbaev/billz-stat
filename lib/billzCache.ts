@@ -33,6 +33,16 @@ export async function getFromCache(key: string): Promise<unknown> {
   }
 }
 
+/** Deletes all cache entries for a given user (call when token changes). */
+export async function clearUserCache(userId: string): Promise<void> {
+  try {
+    await connectDB();
+    await BillzRequestCache.deleteMany({ userTelegramId: userId });
+  } catch (err) {
+    console.error("[billzCache] clearUserCache failed:", err);
+  }
+}
+
 /** Upserts a cache entry. Fire-and-forget friendly (never throws). */
 export async function setCache(
   key: string,
