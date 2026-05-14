@@ -42,11 +42,14 @@ export async function GET(req: NextRequest) {
             dates: (r.data.orders_sorted_by_date_list ?? []).map((d: { date: string; orders: unknown[] }) => ({
               date: d.date,
               order_count: d.orders?.length,
-              sample_customer_ids: d.orders?.slice(0, 3).map((o: Record<string, unknown>) => ({
-                customer_id: o.customer_id,
-                order_type: o.order_type,
-                total_price: (o.order_detail as Record<string, unknown>)?.total_price,
-              })),
+              sample_customer_ids: d.orders?.slice(0, 3).map((o) => {
+                const row = o as Record<string, unknown>;
+                return {
+                  customer_id: row.customer_id,
+                  order_type: row.order_type,
+                  total_price: (row.order_detail as Record<string, unknown>)?.total_price,
+                };
+              }),
             })),
           };
         } catch (e) {
