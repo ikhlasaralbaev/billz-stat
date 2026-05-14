@@ -122,8 +122,12 @@ export async function getCachedSellerRows(
 
     if (!minDoc || !maxDoc) {
       // Nothing cached at all — fetch the entire historical window
-      const apiRows = await getSellerDailyRows(token, shopIds, startDate, histEnd, userId);
-      await upsertRows(user, apiRows);
+      try {
+        const apiRows = await getSellerDailyRows(token, shopIds, startDate, histEnd, userId);
+        await upsertRows(user, apiRows);
+      } catch (err) {
+        console.error("[sellerCache] historical fetch failed, will use cached data:", err);
+      }
     } else {
       const minCached = (minDoc as { date: string }).date;
       const maxCached = (maxDoc as { date: string }).date;
@@ -131,23 +135,35 @@ export async function getCachedSellerRows(
       // Fill gap before the earliest cached date
       if (startDate < minCached) {
         const gapEnd = addDays(minCached, -1);
-        const apiRows = await getSellerDailyRows(token, shopIds, startDate, gapEnd, userId);
-        await upsertRows(user, apiRows);
+        try {
+          const apiRows = await getSellerDailyRows(token, shopIds, startDate, gapEnd, userId);
+          await upsertRows(user, apiRows);
+        } catch (err) {
+          console.error("[sellerCache] gap-before fill failed, using cached data:", err);
+        }
       }
 
       // Fill gap after the latest cached date
       if (maxCached < histEnd) {
         const gapStart = addDays(maxCached, 1);
-        const apiRows = await getSellerDailyRows(token, shopIds, gapStart, histEnd, userId);
-        await upsertRows(user, apiRows);
+        try {
+          const apiRows = await getSellerDailyRows(token, shopIds, gapStart, histEnd, userId);
+          await upsertRows(user, apiRows);
+        } catch (err) {
+          console.error("[sellerCache] gap-after fill failed, using cached data:", err);
+        }
       }
     }
   }
 
   // ── Always re-fetch today ──────────────────────────────────────────────────
   if (endDate >= today) {
-    const todayRows = await getSellerDailyRows(token, shopIds, today, today, userId);
-    await upsertRows(user, todayRows);
+    try {
+      const todayRows = await getSellerDailyRows(token, shopIds, today, today, userId);
+      await upsertRows(user, todayRows);
+    } catch (err) {
+      console.error("[sellerCache] today re-fetch failed, using cached data:", err);
+    }
   }
 
   // ── Return all docs from DB for [startDate, endDate] ──────────────────────

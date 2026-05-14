@@ -80,7 +80,7 @@ export default async function EmployeesPage({
           <div className="h-3 rounded w-48" style={{ background: "#1E293B" }} />
         </div>
       }>
-        <EmployeeAnomalyServer period={period} />
+        <EmployeeAnomalyServer sellers={sorted} period={period} shopIds={shopIds} userId={userId} isRu={isRu} />
       </Suspense>
 
       {error ? (
