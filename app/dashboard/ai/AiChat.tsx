@@ -74,10 +74,10 @@ export default function AiChat({
   let lastDate = "";
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 200px)", minHeight: "480px" }}>
+    <div className="flex flex-col w-full" style={{ height: "calc(100vh - 200px)", minHeight: "480px" }}>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-3 pr-1" style={{ overflowX: "hidden", width: "100%" }}>
 
         {messages.length === 0 && (
           <div className="flex items-start gap-3">
@@ -111,12 +111,13 @@ export default function AiChat({
                   </span>
                 </div>
               )}
-              <div className={`flex items-end gap-2 ${isAi ? "" : "flex-row-reverse"}`}>
+              <div className={`flex items-end gap-2 w-full ${isAi ? "" : "flex-row-reverse"}`}>
                 <Avatar ai={isAi} />
-                <div className={`flex-1 min-w-0 flex flex-col gap-1 ${isAi ? "items-start" : "items-end"}`}>
-                  <div className="max-w-[80%]">
-                    <Bubble ai={isAi}>{msg.text}</Bubble>
-                  </div>
+                <div
+                  className={`flex flex-col gap-1 min-w-0 ${isAi ? "items-start" : "items-end"}`}
+                  style={{ maxWidth: "calc(100% - 44px)" }}
+                >
+                  <Bubble ai={isAi}>{msg.text}</Bubble>
                   <div className={`flex items-center gap-2 text-xs px-1 ${isAi ? "" : "flex-row-reverse"}`} style={{ color: "#334155" }}>
                     <span>{fmtTime(msg.createdAt)}</span>
                     {isAi && msg.totalTokens && (
@@ -197,7 +198,7 @@ function Avatar({ ai }: { ai: boolean }) {
 function Bubble({ ai, children }: { ai: boolean; children: React.ReactNode }) {
   return (
     <div
-      className="rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap break-words"
+      className="rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap break-words max-w-full"
       style={ai
         ? { background: "#0D1526", border: "1px solid #1E293B", color: "#CBD5E1", borderBottomLeftRadius: 4 }
         : { background: "#1E1B4B", color: "#A5B4FC", borderBottomRightRadius: 4 }}
