@@ -164,12 +164,14 @@ bot.start(async (ctx) => {
   // Token bor — shop re-selection
   try {
     const token = await getToken(user.billzToken);
-    const shops = await getShops(token);
+    const shops = await getShops(token, String(telegramId));
     await ctx.reply(t[lang].greetingReturning(profile.firstName));
     await showShopSelection(ctx, shops, user.selectedShopIds ?? [], lang);
   } catch {
-    await ctx.reply(t[lang].tokenError);
+    // Token muammoli — DB'dan o'chirib, qayta so'raymiz
+    await User.findOneAndUpdate({ telegramId }, { billzToken: null, selectedShopIds: [] });
     awaitingToken.add(telegramId);
+    await ctx.reply(t[lang].tokenError);
   }
 });
 
@@ -194,12 +196,14 @@ bot.action(/^lang:(uz|ru)$/, async (ctx) => {
 
   try {
     const token = await getToken(user.billzToken);
-    const shops = await getShops(token);
+    const shops = await getShops(token, String(telegramId));
     await ctx.reply(t[lang].greetingReturning(user.firstName ?? null));
     await showShopSelection(ctx, shops, user.selectedShopIds ?? [], lang);
   } catch {
-    await ctx.reply(t[lang].tokenError);
+    // Token muammoli — DB'dan o'chirib, qayta so'raymiz
+    await User.findOneAndUpdate({ telegramId }, { billzToken: null, selectedShopIds: [] });
     awaitingToken.add(telegramId);
+    await ctx.reply(t[lang].tokenError);
   }
 });
 
@@ -375,9 +379,10 @@ async function reportFlow(ctx: {
   const firstName = ctx.from.first_name ?? user.firstName ?? null;
   await ctx.reply(t[lang].reportLoading(firstName));
 
+  const uid = String(telegramId);
   try {
     const token = await getToken(user.billzToken!);
-    const allShops = await getShops(token);
+    const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
     const today = toDateStr(new Date());
@@ -387,10 +392,10 @@ async function reportFlow(ctx: {
     const thirtyDaysAgo = toDateStr(new Date(Date.now() - 30 * 86400000));
 
     const [generalRows, products, saleRows7d, saleRows30d] = await Promise.all([
-      getGeneralReport(token, shopIds, yesterday, tomorrow),
-      getAllProducts(token),
-      getProductSaleRows(token, shopIds, sevenDaysAgo, today),
-      getProductSaleRows(token, shopIds, thirtyDaysAgo, today),
+      getGeneralReport(token, shopIds, yesterday, tomorrow, uid),
+      getAllProducts(token, uid),
+      getProductSaleRows(token, shopIds, sevenDaysAgo, today, uid),
+      getProductSaleRows(token, shopIds, thirtyDaysAgo, today, uid),
     ]);
 
     const summary = buildReportSummary(generalRows, today, yesterday);
@@ -461,11 +466,12 @@ bot.command("sales", async (ctx) => {
   const user = await requireUser(ctx);
   if (!user) return;
 
+  const uid = String(ctx.from.id);
   await ctx.reply("⏳ Sotuvlar yuklanmoqda...");
 
   try {
     const token = await getToken(user.billzToken!);
-    const allShops = await getShops(token);
+    const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
     const today = toDateStr(new Date());
@@ -520,11 +526,12 @@ bot.command("orders", async (ctx) => {
   const user = await requireUser(ctx);
   if (!user) return;
 
+  const uid = String(ctx.from.id);
   await ctx.reply("⏳ Bugungi buyurtmalar yuklanmoqda...");
 
   try {
     const token = await getToken(user.billzToken!);
-    const allShops = await getShops(token);
+    const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
     const today = toDateStr(new Date());
@@ -578,17 +585,18 @@ bot.command("top", async (ctx) => {
   const user = await requireUser(ctx);
   if (!user) return;
 
+  const uid = String(ctx.from.id);
   await ctx.reply("⏳ Mahsulot hisoboti tayyorlanmoqda...");
 
   try {
     const token = await getToken(user.billzToken!);
-    const allShops = await getShops(token);
+    const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
     const thirtyDaysAgo = toDateStr(new Date(Date.now() - 30 * 86400000));
     const today = toDateStr(new Date());
 
-    const rows = await getProductPerformance(token, shopIds, thirtyDaysAgo, today);
+    const rows = await getProductPerformance(token, shopIds, thirtyDaysAgo, today, uid);
 
     if (rows.length === 0) {
       await ctx.reply("📊 So'nggi 30 kunda ma'lumot topilmadi.");
@@ -680,7 +688,7 @@ bot.on("contact", async (ctx) => {
 
   try {
     const token = await getToken(user?.billzToken ?? "");
-    const shops = await getShops(token);
+    const shops = await getShops(token, String(telegramId));
     await showShopSelection(ctx, shops, user?.selectedShopIds ?? [], lang);
   } catch {
     await ctx.reply(t[lang].tokenError);
@@ -718,7 +726,7 @@ bot.on("text", async (ctx) => {
 
     try {
       const token = await getToken(user?.billzToken ?? "");
-      const shops = await getShops(token);
+      const shops = await getShops(token, String(telegramId));
       await showShopSelection(ctx, shops, user?.selectedShopIds ?? [], lang);
     } catch {
       await ctx.reply(t[lang].tokenError);
@@ -731,11 +739,12 @@ bot.on("text", async (ctx) => {
 
   // Token qabul qilish
   const billzToken = text.trim();
+  if (!billzToken) return;
   await connectDB();
 
   try {
     const token = await getToken(billzToken);
-    await getShops(token); // validate
+    await getShops(token, String(telegramId)); // validate + warm cache for this user
 
     const profile = extractTelegramProfile(ctx.from);
     await User.findOneAndUpdate(
