@@ -20,6 +20,9 @@ const COMMANDS: Command[] = [
   { type: "overstock", labelUz: "Overstock",            labelRu: "Overstock",           emoji: "🏗️" },
 ];
 
+const TYPING_STEP = 10;  // chars per tick
+const TYPING_INTERVAL = 8; // ms per tick → ~1250 chars/sec
+
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
@@ -45,12 +48,39 @@ export default function AiChat({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Typing animation state
+  const [streamingAiMsg, setStreamingAiMsg] = useState<ChatMessage | null>(null);
+  const [shownChars, setShownChars] = useState(0);
+  const isTyping = streamingAiMsg !== null && shownChars < streamingAiMsg.text.length;
+
+  useEffect(() => {
+    if (!streamingAiMsg) return;
+    if (shownChars >= streamingAiMsg.text.length) {
+      setMessages((prev) => [...prev, streamingAiMsg]);
+      setStreamingAiMsg(null);
+      setShownChars(0);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShownChars((n) => Math.min(n + TYPING_STEP, streamingAiMsg.text.length));
+    }, TYPING_INTERVAL);
+    return () => clearTimeout(timer);
+  }, [streamingAiMsg, shownChars]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, pending]);
+  }, [messages, pending, shownChars]);
 
   function appendOptimistic(userText: string) {
     setMessages((prev) => [...prev, { role: "user", text: userText, createdAt: new Date().toISOString() }]);
+  }
+
+  function startTyping(saved: ChatMessage[]) {
+    const userMsg = saved[0];
+    const aiMsg = saved[1];
+    setMessages((prev) => [...prev.slice(0, -1), userMsg]);
+    setStreamingAiMsg(aiMsg);
+    setShownChars(0);
   }
 
   function onAiError() {
@@ -64,13 +94,13 @@ export default function AiChat({
   }
 
   function send(cmd: Command) {
-    if (pending) return;
+    if (pending || isTyping) return;
     const label = `${cmd.emoji} ${isRu ? cmd.labelRu : cmd.labelUz}`;
     appendOptimistic(label);
     startTransition(async () => {
       try {
         const saved = await runAiCommand(cmd.type, label);
-        setMessages((prev) => [...prev.slice(0, -1), ...saved]);
+        startTyping(saved);
       } catch {
         onAiError();
       }
@@ -79,7 +109,7 @@ export default function AiChat({
 
   function sendCustom() {
     const text = inputText.trim();
-    if (!text || pending) return;
+    if (!text || pending || isTyping) return;
     setInputText("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -88,7 +118,7 @@ export default function AiChat({
     startTransition(async () => {
       try {
         const saved = await sendCustomMessage(text);
-        setMessages((prev) => [...prev.slice(0, -1), ...saved]);
+        startTyping(saved);
       } catch {
         onAiError();
       }
@@ -118,13 +148,19 @@ export default function AiChat({
     []
   );
 
+  const streamingDateStr = streamingAiMsg ? fmtDate(streamingAiMsg.createdAt, isRu) : "";
+  const lastDateStr = messagesWithSep[messagesWithSep.length - 1]?.dateStr ?? "";
+  const showStreamingDate = !!streamingAiMsg && streamingDateStr !== lastDateStr;
+
+  const isBusy = pending || isTyping;
+
   return (
     <div className="flex flex-col w-full h-full" style={{ minHeight: "480px" }}>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1" style={{ overflowX: "hidden", width: "100%" }}>
 
-        {messages.length === 0 && (
+        {messages.length === 0 && !streamingAiMsg && (
           <div className="flex items-start gap-3">
             <Avatar ai />
             <div>
@@ -181,6 +217,43 @@ export default function AiChat({
           );
         })}
 
+        {/* Typing animation message */}
+        {streamingAiMsg && (
+          <div>
+            {showStreamingDate && (
+              <div className="flex justify-center my-3">
+                <span className="text-xs px-3 py-1 rounded-full" style={{ background: "#0D1526", color: "#475569" }}>
+                  {streamingDateStr}
+                </span>
+              </div>
+            )}
+            <div className="flex items-end gap-2 w-full">
+              <Avatar ai />
+              <div className="flex flex-col gap-1 min-w-0 items-start" style={{ maxWidth: "calc(100% - 44px)" }}>
+                <Bubble ai>
+                  {streamingAiMsg.text.slice(0, shownChars)}
+                  {isTyping && (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 2,
+                        height: "1em",
+                        background: "#6366F1",
+                        marginLeft: 2,
+                        verticalAlign: "text-bottom",
+                        animation: "blink 0.7s step-end infinite",
+                      }}
+                    />
+                  )}
+                </Bubble>
+                <div className="flex items-center gap-2 text-xs px-1" style={{ color: "#334155" }}>
+                  <span>{fmtTime(streamingAiMsg.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {pending && (
           <div className="flex items-end gap-2">
             <Avatar ai />
@@ -208,7 +281,7 @@ export default function AiChat({
             <button
               key={cmd.type}
               onClick={() => send(cmd)}
-              disabled={pending || !hasReport}
+              disabled={isBusy || !hasReport}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer disabled:opacity-40 shrink-0"
               style={{ background: "#0D1526", border: "1px solid #1E293B", color: "#94A3B8" }}
             >
@@ -225,7 +298,7 @@ export default function AiChat({
             value={inputText}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            disabled={pending}
+            disabled={isBusy}
             placeholder={isRu ? "Напишите вопрос... (Enter — отправить)" : "Savol yozing... (Enter — yuborish)"}
             rows={1}
             className="flex-1 resize-none rounded-xl px-3 py-2.5 text-sm"
@@ -241,7 +314,7 @@ export default function AiChat({
           />
           <button
             onClick={sendCustom}
-            disabled={pending || !inputText.trim()}
+            disabled={isBusy || !inputText.trim()}
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity disabled:opacity-30"
             style={{ background: "#6366F1" }}
           >
@@ -250,6 +323,10 @@ export default function AiChat({
         </div>
 
       </div>
+
+      <style>{`
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      `}</style>
     </div>
   );
 }
