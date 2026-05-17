@@ -897,7 +897,7 @@ export function groupPurchasesByOrder(rows: CustomerPurchaseRow[]): ClientOrderS
 // Fetches ALL purchase rows for the given shops and caches them.
 // The Billz customer-purchases-table API ignores customer_id filter for some accounts,
 // so we fetch all pages and filter client-side.
-async function fetchAllPurchaseRows(
+export async function fetchAllPurchaseRows(
   token: string,
   shopIds: string[],
   userId?: string,

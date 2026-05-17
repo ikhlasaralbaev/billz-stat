@@ -1,13 +1,14 @@
 import { cookies } from "next/headers";
 import { signJwt, verifyJwt, SessionPayload } from "@/lib/jwt";
+import { UserRole } from "@/models/user";
 
 export type { SessionPayload };
 
 const COOKIE_NAME = "billz_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
-export async function createSession(telegramId: number): Promise<string> {
-  return signJwt(telegramId);
+export async function createSession(telegramId: number, role: UserRole): Promise<string> {
+  return signJwt(telegramId, role);
 }
 
 export async function getSession(): Promise<SessionPayload | null> {

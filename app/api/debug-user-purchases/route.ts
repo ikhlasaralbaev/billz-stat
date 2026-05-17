@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDashboardUser } from "@/lib/dashboard";
 import { getToken, getShops } from "@/lib/billz";
+import { decryptBillzToken } from "@/lib/crypto";
 import axios from "axios";
 
 const BASE_V1 = process.env.BILLZ_API_URL_V1!;
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const customerId = searchParams.get("id");
 
-  const token = await getToken(user.billzToken, String(user.telegramId));
+  const token = await getToken(decryptBillzToken(user.billzToken), String(user.telegramId));
   const shops = await getShops(token, String(user.telegramId));
   const shopIds = shops.map((s) => s.id);
   const today = new Date().toISOString().slice(0, 10);

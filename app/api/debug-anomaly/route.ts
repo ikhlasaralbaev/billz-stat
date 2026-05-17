@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDashboardUser } from "@/lib/dashboard";
 import { getToken, getShops, getGeneralReport } from "@/lib/billz";
+import { decryptBillzToken } from "@/lib/crypto";
 import { makeCacheKey, getFromCache } from "@/lib/billzCache";
 import { detectShopAnomalies } from "@/services/anomalyDetector";
 
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     const user = await getDashboardUser();
     if (!user?.billzToken) return NextResponse.json({ error: "No user / billzToken" });
 
-    const token = await getToken(user.billzToken);
+    const token = await getToken(decryptBillzToken(user.billzToken!));
     const shopIds = user.selectedShopIds?.length
       ? user.selectedShopIds
       : (await getShops(token)).map((s) => s.id);

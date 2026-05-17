@@ -2,6 +2,7 @@ import { getDashboardUser } from "@/lib/dashboard";
 import { redirect } from "next/navigation";
 import { getLang } from "@/lib/i18n";
 import { getToken, getShops, SellerDayRow } from "@/lib/billz";
+import { decryptBillzToken } from "@/lib/crypto";
 import { getCachedSellerRows } from "@/services/sellerCache";
 import Anthropic from "@anthropic-ai/sdk";
 import Link from "next/link";
@@ -179,7 +180,7 @@ export default async function SellerDetailPage({
       : toDateStr(new Date(Date.now() - 30 * 86400000));
 
   const userId = String(user.telegramId);
-  const token = await getToken(user.billzToken, userId);
+  const token = await getToken(decryptBillzToken(user.billzToken), userId);
   const shopIds = user.selectedShopIds?.length
     ? user.selectedShopIds
     : (await getShops(token, userId)).map((s) => s.id);

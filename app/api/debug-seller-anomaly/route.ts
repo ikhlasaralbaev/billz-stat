@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDashboardUser } from "@/lib/dashboard";
 import { getToken, getShops } from "@/lib/billz";
 import { getCachedSellerStats } from "@/services/sellerCache";
+import { decryptBillzToken } from "@/lib/crypto";
 import { makeCacheKey, getFromCache } from "@/lib/billzCache";
 import { detectSellerAnomalies } from "@/services/anomalyDetector";
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
         ? toDateStr(new Date(Date.now() - 7 * 86400000))
         : toDateStr(new Date(Date.now() - 30 * 86400000));
 
-    const token = await getToken(user.billzToken, userId);
+    const token = await getToken(decryptBillzToken(user.billzToken), userId);
     const shopIds = user.selectedShopIds?.length
       ? user.selectedShopIds
       : (await getShops(token, userId)).map((s) => s.id);

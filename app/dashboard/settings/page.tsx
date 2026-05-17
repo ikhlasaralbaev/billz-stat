@@ -2,6 +2,7 @@ import { getDashboardUser } from "@/lib/dashboard";
 import { redirect } from "next/navigation";
 import { getLang } from "@/lib/i18n";
 import { getToken, getShops } from "@/lib/billz";
+import { decryptBillzToken } from "@/lib/crypto";
 import { Settings, User, Globe, Clock, Store, Shield, KeyRound } from "lucide-react";
 import LanguageForm from "./LanguageForm";
 import ReportHourForm from "./ReportHourForm";
@@ -65,7 +66,7 @@ export default async function SettingsPage() {
   if (user.billzToken) {
     try {
       const userId = String(user.telegramId);
-      const token = await getToken(user.billzToken, userId);
+      const token = await getToken(decryptBillzToken(user.billzToken), userId);
       shops = await getShops(token, userId);
     } catch {
       shopError = true;

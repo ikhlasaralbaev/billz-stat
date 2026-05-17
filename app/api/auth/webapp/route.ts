@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sessionToken = await createSession(telegramId);
+    const sessionToken = await createSession(telegramId, user.role ?? "USER");
     const cookieStore = await cookies();
     cookieStore.set(sessionCookieOptions(sessionToken));
 

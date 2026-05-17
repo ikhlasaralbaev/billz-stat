@@ -13,13 +13,18 @@ function publicBase(req: NextRequest): string {
   return `${proto}://${host}`;
 }
 
+const ALLOWED_REDIRECTS = ["/dashboard", "/admin"];
+
 export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get("token");
-  const base  = publicBase(req);
+  const token    = req.nextUrl.searchParams.get("token");
+  const redirect = req.nextUrl.searchParams.get("redirect") ?? "/dashboard";
+  const base     = publicBase(req);
 
   if (!token) {
     return NextResponse.redirect(`${base}/auth/error`);
   }
+
+  const destination = ALLOWED_REDIRECTS.includes(redirect) ? redirect : "/dashboard";
 
   await connectDB();
   const user = await User.findOne({ webToken: token });
@@ -28,9 +33,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${base}/auth/error`);
   }
 
-  const sessionToken = await createSession(user.telegramId);
+  const sessionToken = await createSession(user.telegramId, user.role ?? "USER");
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieOptions(sessionToken));
 
-  return NextResponse.redirect(`${base}/dashboard`);
+  return NextResponse.redirect(`${base}${destination}`);
 }

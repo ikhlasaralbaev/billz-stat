@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { UserRole } from "@/models/user";
 
 const SECRET = new TextEncoder().encode(
   process.env.SESSION_SECRET ?? "billz-stat-dev-secret-change-in-production"
@@ -6,10 +7,11 @@ const SECRET = new TextEncoder().encode(
 
 export interface SessionPayload {
   telegramId: number;
+  role: UserRole;
 }
 
-export async function signJwt(telegramId: number): Promise<string> {
-  return new SignJWT({ telegramId })
+export async function signJwt(telegramId: number, role: UserRole): Promise<string> {
+  return new SignJWT({ telegramId, role })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
@@ -19,7 +21,10 @@ export async function signJwt(telegramId: number): Promise<string> {
 export async function verifyJwt(token: string): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return { telegramId: payload.telegramId as number };
+    return {
+      telegramId: payload.telegramId as number,
+      role: (payload.role as UserRole) ?? "USER",
+    };
   } catch {
     return null;
   }

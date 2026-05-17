@@ -29,6 +29,7 @@ export const t = {
     weblinkText: () =>
       `🌐 Quyidagi tugma orqali Dashboard ga kiring.\n\n⚠️ Bu havola faqat siz uchun. Boshqalar bilan ulashmang.`,
     weblinkBtn: "🌐 Dashboard ochish",
+    adminPanelBtn: "⚙️ Admin panel",
     weblinkRequireToken: "Dashboard ga kirish uchun avval Billz tokenni sozlang.",
     reportLoading: (name: string | null) => `⏳ ${name ? `${name}, h` : "H"}isobot tayyorlanmoqda...`,
     reportError: "Xatolik yuz berdi. Keyinroq qayta urinib ko'ring.",
@@ -97,6 +98,7 @@ export const t = {
     weblinkText: () =>
       `🌐 Нажмите кнопку ниже, чтобы войти в Dashboard.\n\n⚠️ Эта ссылка только для вас. Не передавайте её другим.`,
     weblinkBtn: "🌐 Открыть Dashboard",
+    adminPanelBtn: "⚙️ Админ панель",
     weblinkRequireToken: "Для доступа к Dashboard сначала настройте токен Billz.",
     reportLoading: (name: string | null) => `⏳ ${name ? `${name}, ф` : "Ф"}ормирую отчёт...`,
     reportError: "Произошла ошибка. Попробуйте позже.",

@@ -49,7 +49,7 @@ export default function EmployeeAnomalyButton({
   if (status === "loading") {
     return (
       <div
-        className="rounded-2xl px-4 py-3 flex items-center gap-3"
+        className="rounded-2xl px-4 py-3 flex items-center gap-3 mb-4"
         style={{ background: "#0D1526", border: "1px solid #1E293B" }}
       >
         <span

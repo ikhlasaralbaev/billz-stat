@@ -5,9 +5,12 @@ import {
   getToken, getShops,
   getClientDetail, getClientPurchases, groupPurchasesByOrder,
 } from "@/lib/billz";
+import { decryptBillzToken } from "@/lib/crypto";
 import { UserCheck, Phone, Store, Calendar, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import OrdersTable from "./OrdersTable";
+import ClientAiAnalysis from "./ClientAiAnalysis";
+import { loadCachedAnalysis } from "./clientAiAction";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("uz-UZ").format(Math.round(n)) + " UZS";
@@ -34,7 +37,7 @@ export default async function ClientDetailPage({
   const lang = getLang(user);
   const isRu = lang === "ru";
 
-  const token = await getToken(user.billzToken, String(user.telegramId));
+  const token = await getToken(decryptBillzToken(user.billzToken), String(user.telegramId));
 
   const [detail, shops] = await Promise.all([
     getClientDetail(token, id, String(user.telegramId)),
@@ -72,6 +75,8 @@ export default async function ClientDetailPage({
   const orders = groupPurchasesByOrder(purchaseRows);
   const saleOrders = orders.filter((o) => o.order_type === "Продажа" || o.order_type === "SALE");
   const returnOrders = orders.filter((o) => o.order_type !== "Продажа" && o.order_type !== "SALE");
+
+  const cachedAnalysis = await loadCachedAnalysis(id);
 
   const name = [detail.first_name, detail.last_name].filter(Boolean).join(" ") || "—";
 
@@ -199,6 +204,8 @@ export default async function ClientDetailPage({
           </div>
         ))}
       </div>
+
+      <ClientAiAnalysis clientId={id} isRu={isRu} initialResult={cachedAnalysis} />
 
       <div>
         <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">

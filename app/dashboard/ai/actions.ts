@@ -8,6 +8,7 @@ import AiMessage from "@/models/AiMessage";
 import { connectDB } from "@/lib/db";
 import { getToken, getShops, SellerStatRow } from "@/lib/billz";
 import { getCachedSellerStats } from "@/services/sellerCache";
+import { decryptBillzToken } from "@/lib/crypto";
 import { logRequest } from "@/lib/requestLogger";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -155,7 +156,7 @@ export async function runAiCommand(type: CommandType, userLabel: string): Promis
   if (type === "sellers") {
     if (!user.billzToken) throw new Error("no_token");
     const userId = String(user.telegramId);
-    const token = await getToken(user.billzToken, userId);
+    const token = await getToken(decryptBillzToken(user.billzToken), userId);
     const shopIds = user.selectedShopIds?.length
       ? user.selectedShopIds
       : (await getShops(token, userId)).map((s) => s.id);

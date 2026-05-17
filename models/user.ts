@@ -1,5 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export type UserRole = "USER" | "ADMIN";
+
 export interface IUser extends Document {
   telegramId: number;
   firstName: string | null;
@@ -14,6 +16,7 @@ export interface IUser extends Document {
   selectedShopIds: string[];
   selectedShopNames: string[];
   reportHour: number;
+  role: UserRole;
   createdAt: Date;
 }
 
@@ -32,6 +35,7 @@ const UserSchema = new Schema<IUser>(
     selectedShopIds: { type: [String], default: [] },
     selectedShopNames: { type: [String], default: [] },
     reportHour: { type: Number, default: 20 },
+    role: { type: String, enum: ["USER", "ADMIN"], default: "USER" },
   },
   { timestamps: true }
 );

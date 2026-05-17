@@ -10,6 +10,7 @@ import AiAnalysis from "@/models/AiAnalysis";
 import { t, getLang, Lang } from "@/lib/i18n";
 import { v4 as uuidv4 } from "uuid";
 import { clearUserCache } from "@/lib/billzCache";
+import { encryptBillzToken, decryptBillzToken } from "@/lib/crypto";
 
 // UTC+5 (Tashkent) offset
 function toDateStr(date: Date): string {
@@ -18,6 +19,23 @@ function toDateStr(date: Date): string {
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 if (!BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not defined");
+
+function getAppBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
+}
+
+// Telegram inline buttons require HTTPS. For local dev (http), send URL as plain text.
+async function sendWebLink(ctx: { reply: (text: string, extra?: object) => Promise<unknown> }, lang: Lang, url: string) {
+  if (url.startsWith("https://")) {
+    await ctx.reply(t[lang].weblinkText(), {
+      reply_markup: {
+        inline_keyboard: [[{ text: t[lang].weblinkBtn, url }]],
+      },
+    });
+  } else {
+    await ctx.reply(`${t[lang].weblinkText()}\n\n${url}`);
+  }
+}
 
 export const bot = new Telegraf(BOT_TOKEN);
 
@@ -37,15 +55,15 @@ const LANG_KEYBOARD = {
   ]],
 };
 
-function getMainKeyboard(lang: Lang) {
-  return {
-    keyboard: [
-      [{ text: t[lang].reportBtn }, { text: t[lang].weblinkBtn }],
-      [{ text: t[lang].changeTokenBtn }],
-    ],
-    resize_keyboard: true,
-    persistent: true,
-  };
+function getMainKeyboard(lang: Lang, isAdmin = false) {
+  const rows: { text: string }[][] = [
+    [{ text: t[lang].reportBtn }, { text: t[lang].weblinkBtn }],
+    [{ text: t[lang].changeTokenBtn }],
+  ];
+  if (isAdmin) {
+    rows.push([{ text: t[lang].adminPanelBtn }]);
+  }
+  return { keyboard: rows, resize_keyboard: true, persistent: true };
 }
 
 function getPhoneKeyboard(lang: Lang) {
@@ -164,7 +182,7 @@ bot.start(async (ctx) => {
 
   // Token bor — shop re-selection
   try {
-    const token = await getToken(user.billzToken);
+    const token = await getToken(decryptBillzToken(user.billzToken!));
     const shops = await getShops(token, String(telegramId));
     await ctx.reply(t[lang].greetingReturning(profile.firstName));
     await showShopSelection(ctx, shops, user.selectedShopIds ?? [], lang);
@@ -196,7 +214,7 @@ bot.action(/^lang:(uz|ru)$/, async (ctx) => {
   }
 
   try {
-    const token = await getToken(user.billzToken);
+    const token = await getToken(decryptBillzToken(user.billzToken!));
     const shops = await getShops(token, String(telegramId));
     await ctx.reply(t[lang].greetingReturning(user.firstName ?? null));
     await showShopSelection(ctx, shops, user.selectedShopIds ?? [], lang);
@@ -254,7 +272,7 @@ bot.action("save_shops", async (ctx) => {
 
   await ctx.editMessageText(t[lang].shopsSaved(selected.size));
   await ctx.answerCbQuery(t[lang].savedCb);
-  await ctx.reply(t[lang].allDone, { reply_markup: getMainKeyboard(lang) });
+  await ctx.reply(t[lang].allDone, { reply_markup: getMainKeyboard(lang, user?.role === "ADMIN") });
 });
 
 // ── AI Tahlil — do'kon tanlash ────────────────────────────────────────────────
@@ -382,7 +400,7 @@ async function reportFlow(ctx: {
 
   const uid = String(telegramId);
   try {
-    const token = await getToken(user.billzToken!);
+    const token = await getToken(decryptBillzToken(user.billzToken!));
     const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
@@ -456,13 +474,8 @@ bot.command("weblink", async (ctx) => {
   const webToken = uuidv4();
   await User.findOneAndUpdate({ telegramId }, { webToken });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
-  const url = `${baseUrl}/auth?token=${webToken}`;
-  await ctx.reply(t[lang].weblinkText(), {
-    reply_markup: {
-      inline_keyboard: [[{ text: t[lang].weblinkBtn, url }]],
-    },
-  });
+  const url = `${getAppBaseUrl()}/auth?token=${webToken}`;
+  await sendWebLink(ctx, lang, url);
 });
 
 // ── /sales ────────────────────────────────────────────────────────────────────
@@ -475,7 +488,7 @@ bot.command("sales", async (ctx) => {
   await ctx.reply("⏳ Sotuvlar yuklanmoqda...");
 
   try {
-    const token = await getToken(user.billzToken!);
+    const token = await getToken(decryptBillzToken(user.billzToken!));
     const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
@@ -535,7 +548,7 @@ bot.command("orders", async (ctx) => {
   await ctx.reply("⏳ Bugungi buyurtmalar yuklanmoqda...");
 
   try {
-    const token = await getToken(user.billzToken!);
+    const token = await getToken(decryptBillzToken(user.billzToken!));
     const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
@@ -594,7 +607,7 @@ bot.command("top", async (ctx) => {
   await ctx.reply("⏳ Mahsulot hisoboti tayyorlanmoqda...");
 
   try {
-    const token = await getToken(user.billzToken!);
+    const token = await getToken(decryptBillzToken(user.billzToken!));
     const allShops = await getShops(token, uid);
     const shopIds = getEffectiveShopIds(user, allShops);
 
@@ -692,7 +705,7 @@ bot.on("contact", async (ctx) => {
   await ctx.reply(t[lang].phoneSaved, { reply_markup: { remove_keyboard: true } });
 
   try {
-    const token = await getToken(user?.billzToken ?? "");
+    const token = await getToken(decryptBillzToken(user?.billzToken ?? ""));
     const shops = await getShops(token, String(telegramId));
     await showShopSelection(ctx, shops, user?.selectedShopIds ?? [], lang);
   } catch {
@@ -720,6 +733,19 @@ bot.on("text", async (ctx) => {
     return;
   }
 
+  // "⚙️ Admin panel" tugmasi
+  if (text === t.uz.adminPanelBtn || text === t.ru.adminPanelBtn) {
+    await connectDB();
+    const user = await User.findOne({ telegramId });
+    const lang = getLang(user);
+    if (user?.role !== "ADMIN") return;
+    const webToken = uuidv4();
+    await User.findOneAndUpdate({ telegramId }, { webToken });
+    const url = `${getAppBaseUrl()}/auth?token=${webToken}&redirect=/admin`;
+    await sendWebLink(ctx, lang, url);
+    return;
+  }
+
   // "🌐 Dashboard ochish" yoki "🌐 Открыть Dashboard" tugmasi
   if (text === t.uz.weblinkBtn || text === t.ru.weblinkBtn) {
     await connectDB();
@@ -731,13 +757,8 @@ bot.on("text", async (ctx) => {
     }
     const webToken = uuidv4();
     await User.findOneAndUpdate({ telegramId }, { webToken });
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
-    const url = `${baseUrl}/auth?token=${webToken}`;
-    await ctx.reply(t[lang].weblinkText(), {
-      reply_markup: {
-        inline_keyboard: [[{ text: t[lang].weblinkBtn, url }]],
-      },
-    });
+    const url = `${getAppBaseUrl()}/auth?token=${webToken}`;
+    await sendWebLink(ctx, lang, url);
     return;
   }
 
@@ -751,7 +772,7 @@ bot.on("text", async (ctx) => {
     await ctx.reply(t[lang].chooseShops, { reply_markup: { remove_keyboard: true } });
 
     try {
-      const token = await getToken(user?.billzToken ?? "");
+      const token = await getToken(decryptBillzToken(user?.billzToken ?? ""));
       const shops = await getShops(token, String(telegramId));
       await showShopSelection(ctx, shops, user?.selectedShopIds ?? [], lang);
     } catch {
@@ -777,7 +798,7 @@ bot.on("text", async (ctx) => {
     const profile = extractTelegramProfile(ctx.from);
     await User.findOneAndUpdate(
       { telegramId },
-      { billzToken, ...profile, selectedShopIds: [] },
+      { billzToken: encryptBillzToken(billzToken), ...profile, selectedShopIds: [] },
       { upsert: true }
     );
     awaitingToken.delete(telegramId);

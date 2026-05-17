@@ -1,4 +1,5 @@
 import { getToken, getShops, getGeneralReport, getAllProducts, getProductSaleRows } from "@/lib/billz";
+import { decryptBillzToken } from "@/lib/crypto";
 import { calculateDeadStock, calculateOverstock } from "@/lib/insights";
 import { buildReportSummary, buildShopSummaries } from "@/services/reportService";
 import { connectDB } from "@/lib/db";
@@ -14,7 +15,7 @@ export async function generateReportForUser(user: IUser, source: "command" | "cr
   await connectDB();
 
   const userId = String(user.telegramId);
-  const token = await getToken(user.billzToken!, userId);
+  const token = await getToken(decryptBillzToken(user.billzToken!), userId);
   const allShops = await getShops(token, userId);
   const shopIds = user.selectedShopIds?.length
     ? user.selectedShopIds

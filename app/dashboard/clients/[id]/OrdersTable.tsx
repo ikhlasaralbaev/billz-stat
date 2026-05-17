@@ -4,16 +4,20 @@ import React, { useState } from "react";
 import { ClientOrderSummary } from "@/lib/billz";
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat("uz-UZ").format(Math.round(n)) + " UZS";
+  String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " UZS";
 
 function fmtDateTime(dateStr: string): string {
   if (!dateStr) return "—";
   const d = new Date(dateStr.replace(" ", "T"));
   if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleString("ru-RU", {
-    day: "numeric", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
+  const offset = 5 * 60;
+  const local = new Date(d.getTime() + offset * 60_000);
+  const dd = String(local.getUTCDate()).padStart(2, "0");
+  const mm = String(local.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = local.getUTCFullYear();
+  const hh = String(local.getUTCHours()).padStart(2, "0");
+  const min = String(local.getUTCMinutes()).padStart(2, "0");
+  return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
 }
 
 export default function OrdersTable({

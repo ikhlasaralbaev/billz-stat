@@ -13,7 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div data-lang={lang}>
-      <AppShell lang={lang} displayName={displayName} initial={initial}>
+      <AppShell lang={lang} displayName={displayName} initial={initial} isAdmin={user.role === "ADMIN"}>
         {children}
       </AppShell>
     </div>

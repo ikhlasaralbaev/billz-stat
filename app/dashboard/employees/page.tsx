@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getLang } from "@/lib/i18n";
 import { getToken, getShops, SellerStatRow } from "@/lib/billz";
 import { getCachedSellerStats } from "@/services/sellerCache";
+import { decryptBillzToken } from "@/lib/crypto";
 import EmployeeTable from "./EmployeeTable";
 import EmployeeAnomalyButton from "./EmployeeAnomalyButton";
 import EmployeePageShell from "./EmployeePageShell";
@@ -35,7 +36,7 @@ export default async function EmployeesPage({
       : toDateStr(new Date(Date.now() - 30 * 86400000));
 
   const userId = String(user.telegramId);
-  const token = await getToken(user.billzToken, userId);
+  const token = await getToken(decryptBillzToken(user.billzToken), userId);
 
   const shopIds = user.selectedShopIds?.length
     ? user.selectedShopIds
